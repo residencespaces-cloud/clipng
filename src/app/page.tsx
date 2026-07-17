@@ -1,5 +1,5 @@
-import App from "./App";
+import { Landing } from "@/app/features/landing/Landing";
 
-export default function Home() {
-  return <App />;
+export default function HomePage() {
+  return <Landing />;
 }
