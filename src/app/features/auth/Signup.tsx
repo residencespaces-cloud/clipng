@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { AuthRole } from "@/app/types";
 import { emitNavigationStart } from "@/app/lib/page-transition";
+import { api, setTokens } from "@/app/lib/api/client";
 import { AuthShell } from "./AuthShell";
 import { Field } from "./Field";
 import { inputClass } from "./inputClass";
@@ -40,7 +41,7 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
   const set = (key: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     if (!form.name.trim() || !form.email.trim() || !form.phone.trim() || !form.password.trim()) {
@@ -56,11 +57,32 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
       emitNavigationStart();
+      const tokens =
+        role === "clipper"
+          ? await api.auth.signupClipper({
+              name: form.name,
+              email: form.email,
+              phone: form.phone,
+              password: form.password,
+              bankName: form.bankName,
+              accountNumber: form.accountNumber,
+            })
+          : await api.auth.signupFunder({
+              name: form.name,
+              email: form.email,
+              phone: form.phone,
+              password: form.password,
+              business: form.business,
+            });
+      setTokens(tokens);
       router.push(role === "clipper" ? "/clipper" : "/funder");
-    }, 800);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Signup failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

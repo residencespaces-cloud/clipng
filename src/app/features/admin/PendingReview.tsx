@@ -10,10 +10,10 @@ export function PendingReview({
   onCodeVerifiedChange,
 }: {
   clips: PendingClip[];
-  onApprove: (id: number) => void;
-  onReject: (id: number) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
   onApproveAll: () => void;
-  onCodeVerifiedChange: (id: number, verified: boolean) => void;
+  onCodeVerifiedChange: (id: string, verified: boolean) => void;
 }) {
   const verifiedCount = clips.filter((clip) => clip.codeVerified).length;
 

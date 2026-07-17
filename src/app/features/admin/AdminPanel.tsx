@@ -1,56 +1,80 @@
 "use client";
 
-import { useState } from "react";
-import { PENDING_CLIPS } from "@/app/data/mock-data";
-import type { AdminTab, ApprovedClip, AwaitingViewsClip, PendingClip } from "@/app/types";
+import { useCallback, useEffect, useState } from "react";
+import { LogOut } from "lucide-react";
+import { api } from "@/app/lib/api/client";
+import { emitNavigationStart } from "@/app/lib/page-transition";
+import { useAuth } from "@/app/lib/auth/auth-context";
+import type {
+  AdminTab,
+  ApprovedClip,
+  AwaitingViewsClip,
+  PendingClip,
+} from "@/app/types";
 import { AdminPayouts } from "./AdminPayouts";
 import { AllCampaigns } from "./AllCampaigns";
 import { ApprovedClips } from "./ApprovedClips";
 import { PendingReview } from "./PendingReview";
 import { ViewVerification } from "./ViewVerification";
 
-function todayLabel() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function AdminPanel() {
+  const { logout } = useAuth();
   const [tab, setTab] = useState<AdminTab>("pending");
-  const [pendingClips, setPendingClips] = useState<PendingClip[]>(
-    PENDING_CLIPS.map((c) => ({
-      ...c,
-      codeVerified: false,
-    })),
-  );
+  const [pendingClips, setPendingClips] = useState<PendingClip[]>([]);
   const [awaitingViews, setAwaitingViews] = useState<AwaitingViewsClip[]>([]);
   const [readyForPayout, setReadyForPayout] = useState<ApprovedClip[]>([]);
-  const [payoutStatus, setPayoutStatus] = useState<Record<number, string>>({});
+  const [payoutStatus, setPayoutStatus] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
 
-  const approveSubmission = (id: number) => {
-    const clip = pendingClips.find((c) => c.id === id);
-    if (!clip?.codeVerified) return;
-    setAwaitingViews((prev) => [
-      ...prev,
-      { ...clip, approvedDate: todayLabel(), viewCount: "" },
-    ]);
-    setPendingClips((prev) => prev.filter((c) => c.id !== id));
+  const refresh = useCallback(async () => {
+    try {
+      const [pending, awaiting, ready] = await Promise.all([
+        api.admin.pending() as Promise<PendingClip[]>,
+        api.admin.awaitingViews() as Promise<AwaitingViewsClip[]>,
+        api.admin.readyForPayout() as Promise<ApprovedClip[]>,
+      ]);
+      setPendingClips(pending.map((c) => ({ ...c, codeVerified: false })));
+      setAwaitingViews(awaiting.map((c) => ({ ...c, viewCount: c.viewCount ?? "" })));
+      setReadyForPayout(ready);
+    } catch {
+      // API unavailable — keep empty state
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const approveSubmission = async (id: string) => {
+    await api.admin.approve(id, true);
+    await refresh();
   };
 
-  const rejectSubmission = (id: number) =>
-    setPendingClips((prev) => prev.filter((c) => c.id !== id));
+  const rejectSubmission = async (id: string) => {
+    await api.admin.reject(id);
+    await refresh();
+  };
 
-  const confirmViews = (id: number) => {
+  const confirmViews = async (id: string) => {
     const clip = awaitingViews.find((c) => c.id === id);
-    const viewsVerified = parseInt(clip?.viewCount ?? "") || 0;
-    if (!clip || viewsVerified <= 0) return;
-    setReadyForPayout((prev) => [
-      ...prev,
-      { ...clip, viewsVerified, approvedDate: clip.approvedDate },
-    ]);
-    setAwaitingViews((prev) => prev.filter((c) => c.id !== id));
+    const views = parseInt(clip?.viewCount ?? "") || 0;
+    if (!clip || views <= 0) return;
+    await api.admin.verifyViews(id, views);
+    await refresh();
   };
 
-  const triggerPayout = (id: number) =>
+  const triggerPayout = async (id: string) => {
+    await api.admin.triggerPayout(id);
     setPayoutStatus((prev) => ({ ...prev, [id]: "Triggered" }));
+    await refresh();
+  };
+
+  const handleLogout = async () => {
+    emitNavigationStart();
+    await logout();
+  };
 
   const adminTabs: { key: AdminTab; label: string }[] = [
     { key: "pending", label: "Pending Review" },
@@ -69,10 +93,19 @@ export function AdminPanel() {
           </span>
           <span className="text-xs font-mono bg-accent/15 text-accent border border-accent/20 px-2 py-0.5 rounded">ADMIN</span>
         </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
-          <span>{pendingClips.length} pending</span>
-          <span className="text-border">·</span>
-          <span>{awaitingViews.length} awaiting views</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
+            <span>{pendingClips.length} pending</span>
+            <span className="text-border">·</span>
+            <span>{awaitingViews.length} awaiting views</span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground border border-border rounded hover:text-red-400 hover:border-red-500/30 transition-colors"
+          >
+            <LogOut size={14} />
+            Logout
+          </button>
         </div>
       </header>
 
@@ -102,6 +135,7 @@ export function AdminPanel() {
       </div>
 
       <div className="p-6">
+        {loading && <p className="text-sm text-muted-foreground mb-4">Loading admin data…</p>}
         {tab === "pending" && (
           <PendingReview
             clips={pendingClips}

@@ -1,0 +1,372 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  clipper
+  funder
+  admin
+}
+
+enum UserStatus {
+  active
+  suspended
+  pending_verification
+}
+
+enum CampaignStatus {
+  draft
+  active
+  paused
+  exhausted
+  ended
+  archived
+}
+
+enum SourceType {
+  video
+  vod
+}
+
+enum SubmissionStatus {
+  pending_review
+  rejected
+  approved_awaiting_views
+  views_verified
+  payout_triggered
+  paid
+}
+
+enum WalletLedgerType {
+  top_up
+  campaign_escrow
+  escrow_release
+  payout_debit
+  refund
+  adjustment
+}
+
+enum PayoutStatus {
+  pending
+  triggered
+  paid
+  failed
+}
+
+enum NotificationChannel {
+  email
+  in_app
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+model User {
+  id                String     @id @default(uuid())
+  email             String     @unique
+  passwordHash      String     @map("password_hash")
+  role              UserRole
+  status            UserStatus @default(active)
+  emailVerified     Boolean    @default(false) @map("email_verified")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  clipperProfile    ClipperProfile?
+  funderProfile     FunderProfile?
+  refreshTokens     RefreshToken[]
+  participations    CampaignParticipation[]
+  submissions       ClipSubmission[]        @relation("ClipperSubmissions")
+  reviewedSubmissions SubmissionReview[]    @relation("Reviewer")
+  viewVerifications ViewVerification[]      @relation("Verifier")
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model ClipperProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  displayName   String   @map("display_name")
+  phone         String?
+  bankName      String?  @map("bank_name")
+  accountNumber String?  @map("account_number")
+  paystackRecipientCode String? @map("paystack_recipient_code")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("clipper_profiles")
+}
+
+model FunderProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  businessName String   @map("business_name")
+  phone        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet   Wallet?
+  campaigns Campaign[]
+
+  @@map("funder_profiles")
+}
+
+model Wallet {
+  id              String   @id @default(uuid())
+  funderProfileId String   @unique @map("funder_profile_id")
+  balanceKobo     BigInt   @default(0) @map("balance_kobo")
+  escrowKobo      BigInt   @default(0) @map("escrow_kobo")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  funderProfile FunderProfile       @relation(fields: [funderProfileId], references: [id], onDelete: Cascade)
+  ledgerEntries WalletLedgerEntry[]
+
+  @@map("wallets")
+}
+
+model WalletLedgerEntry {
+  id              String           @id @default(uuid())
+  walletId        String           @map("wallet_id")
+  type            WalletLedgerType
+  amountKobo      BigInt           @map("amount_kobo")
+  balanceAfterKobo BigInt          @map("balance_after_kobo")
+  description     String
+  reference       String?          @unique
+  campaignId      String?          @map("campaign_id")
+  metadata        Json?
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  wallet   Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@map("wallet_ledger_entries")
+}
+
+model Campaign {
+  id              String         @id @default(uuid())
+  funderProfileId String         @map("funder_profile_id")
+  name            String
+  sourceType      SourceType     @map("source_type")
+  assetUrl        String?        @map("asset_url")
+  assetStorageKey String?        @map("asset_storage_key")
+  bestMoments     String?        @map("best_moments")
+  description     String
+  platforms       String[]
+  cpmKobo         Int            @map("cpm_kobo")
+  budgetKobo      BigInt         @map("budget_kobo")
+  remainingKobo   BigInt         @map("remaining_kobo")
+  totalViews      Int            @default(0) @map("total_views")
+  clipCount       Int            @default(0) @map("clip_count")
+  imageUrl        String?        @map("image_url")
+  status          CampaignStatus @default(draft)
+  startDate       DateTime?      @map("start_date")
+  endDate         DateTime?      @map("end_date")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  funderProfile  FunderProfile           @relation(fields: [funderProfileId], references: [id])
+  participations CampaignParticipation[]
+  submissions    ClipSubmission[]
+  ledgerEntries  WalletLedgerEntry[]
+
+  @@index([status])
+  @@index([funderProfileId])
+  @@map("campaigns")
+}
+
+model CampaignParticipation {
+  id               String   @id @default(uuid())
+  campaignId       String   @map("campaign_id")
+  clipperId        String   @map("clipper_id")
+  verificationCode String   @unique @map("verification_code")
+  joinedAt         DateTime @default(now()) @map("joined_at")
+
+  campaign    Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  clipper     User             @relation(fields: [clipperId], references: [id], onDelete: Cascade)
+  submissions ClipSubmission[]
+
+  @@unique([campaignId, clipperId])
+  @@map("campaign_participations")
+}
+
+model ClipSubmission {
+  id               String           @id @default(uuid())
+  participationId  String           @map("participation_id")
+  campaignId       String           @map("campaign_id")
+  clipperId        String           @map("clipper_id")
+  platform         String
+  postUrl          String           @map("post_url")
+  verificationCode String           @map("verification_code")
+  codeConfirmed    Boolean          @default(false) @map("code_confirmed")
+  status           SubmissionStatus @default(pending_review)
+  viewsVerified    Int?             @map("views_verified")
+  earningsKobo     Int?             @map("earnings_kobo")
+  submittedAt      DateTime         @default(now()) @map("submitted_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  participation     CampaignParticipation @relation(fields: [participationId], references: [id])
+  campaign          Campaign              @relation(fields: [campaignId], references: [id])
+  clipper           User                  @relation("ClipperSubmissions", fields: [clipperId], references: [id])
+  review            SubmissionReview?
+  viewVerification  ViewVerification?
+  earningEntry      EarningEntry?
+  payoutItem        PayoutItem?
+
+  @@unique([postUrl])
+  @@index([status])
+  @@index([campaignId])
+  @@map("clip_submissions")
+}
+
+model SubmissionReview {
+  id            String   @id @default(uuid())
+  submissionId  String   @unique @map("submission_id")
+  reviewerId    String   @map("reviewer_id")
+  codeVerified  Boolean  @map("code_verified")
+  approved      Boolean
+  rejectionReason String? @map("rejection_reason")
+  notes         String?
+  reviewedAt    DateTime @default(now()) @map("reviewed_at")
+
+  submission ClipSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewer   User           @relation("Reviewer", fields: [reviewerId], references: [id])
+
+  @@map("submission_reviews")
+}
+
+model ViewVerification {
+  id           String   @id @default(uuid())
+  submissionId String   @unique @map("submission_id")
+  verifierId   String   @map("verifier_id")
+  viewCount    Int      @map("view_count")
+  evidenceUrl  String?  @map("evidence_url")
+  verifiedAt   DateTime @default(now()) @map("verified_at")
+
+  submission ClipSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  verifier   User           @relation("Verifier", fields: [verifierId], references: [id])
+
+  @@map("view_verifications")
+}
+
+model EarningEntry {
+  id           String   @id @default(uuid())
+  submissionId String   @unique @map("submission_id")
+  clipperId    String   @map("clipper_id")
+  campaignId   String   @map("campaign_id")
+  grossKobo    Int      @map("gross_kobo")
+  clipperKobo  Int      @map("clipper_kobo")
+  platformKobo Int      @map("platform_kobo")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  submission ClipSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([clipperId])
+  @@map("earning_entries")
+}
+
+model PayoutBatch {
+  id          String       @id @default(uuid())
+  status      PayoutStatus @default(pending)
+  totalKobo   BigInt       @map("total_kobo")
+  triggeredBy String?      @map("triggered_by")
+  triggeredAt DateTime?    @map("triggered_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  items PayoutItem[]
+
+  @@map("payout_batches")
+}
+
+model PayoutItem {
+  id              String       @id @default(uuid())
+  batchId         String?      @map("batch_id")
+  submissionId    String       @unique @map("submission_id")
+  clipperId       String       @map("clipper_id")
+  amountKobo      Int          @map("amount_kobo")
+  status          PayoutStatus @default(pending)
+  paystackRef     String?      @map("paystack_ref")
+  failureReason   String?      @map("failure_reason")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  batch      PayoutBatch?   @relation(fields: [batchId], references: [id])
+  submission ClipSubmission @relation(fields: [submissionId], references: [id])
+
+  @@index([clipperId])
+  @@index([status])
+  @@map("payout_items")
+}
+
+model PaymentWebhook {
+  id          String   @id @default(uuid())
+  provider    String   @default("paystack")
+  eventType   String   @map("event_type")
+  reference   String   @unique
+  payload     Json
+  processed   Boolean  @default(false)
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([processed])
+  @@map("payment_webhooks")
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String              @map("user_id")
+  channel   NotificationChannel
+  status    NotificationStatus  @default(pending)
+  subject   String
+  body      String
+  metadata  Json?
+  sentAt    DateTime?           @map("sent_at")
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?  @map("actor_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

@@ -11,10 +11,11 @@ import {
 import { BudgetBar } from "@/app/components/shared/BudgetBar";
 import { PlatformBadge } from "@/app/components/shared/PlatformBadge";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
-import { CAMPAIGNS } from "@/app/data/mock-data";
+import type { Campaign } from "@/app/types";
 import { clipperCpm, fmt } from "@/app/lib/format";
 
 export function ClipperCampaigns({
+  campaigns,
   joinedCampaign,
   clipUrl,
   clipPlatform,
@@ -29,14 +30,15 @@ export function ClipperCampaigns({
   onCodeConfirmed,
   onSubmit,
 }: {
-  joinedCampaign: number | null;
+  campaigns: Campaign[];
+  joinedCampaign: string | null;
   clipUrl: string;
   clipPlatform: string;
   submitted: boolean;
   verificationCode: string;
   codeConfirmed: boolean;
   submissionError: string;
-  onJoin: (id: number) => void;
+  onJoin: (id: string) => void;
   onCloseJoin: () => void;
   onClipUrl: (v: string) => void;
   onClipPlatform: (v: string) => void;
@@ -45,7 +47,7 @@ export function ClipperCampaigns({
 }) {
   return (
     <div className="grid md:grid-cols-2 gap-4">
-      {CAMPAIGNS.map((c) => (
+      {campaigns.map((c) => (
         <div key={c.id} className="bg-card border border-border rounded-xl p-5 space-y-4">
           <div className="relative aspect-[16/7] rounded-lg overflow-hidden bg-secondary group">
             <img

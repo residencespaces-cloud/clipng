@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { PageLoader } from "@/app/components/shared/PageLoader";
 import { RouteTransition } from "@/app/components/shared/RouteTransition";
+import { Providers } from "@/app/providers";
 import "@/styles/index.css";
 
 export const metadata: Metadata = {
@@ -20,7 +21,9 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <body className="h-full m-0 bg-background text-foreground antialiased">
         <Suspense fallback={<PageLoader />}>
-          <RouteTransition>{children}</RouteTransition>
+          <Providers>
+            <RouteTransition>{children}</RouteTransition>
+          </Providers>
         </Suspense>
       </body>
     </html>

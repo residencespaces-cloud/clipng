@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BarChart2, Film, Upload, Wallet } from "lucide-react";
 import { DashboardShell } from "@/app/components/shared/DashboardShell";
-import { INITIAL_WALLET_BALANCE, WALLET_TRANSACTIONS } from "@/app/data/mock-data";
+import { api } from "@/app/lib/api/client";
+import { useAuth } from "@/app/lib/auth/auth-context";
 import type { CreateCampaignForm, CreateStep, FunderTab, WalletTransaction } from "@/app/types";
 import { CreateCampaign } from "./CreateCampaign";
 import { FunderBilling } from "./FunderBilling";
@@ -15,6 +16,7 @@ function formatTxDate() {
 }
 
 export function FunderDashboard() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<FunderTab>("overview");
   const [createStep, setCreateStep] = useState<CreateStep>(1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -32,12 +34,29 @@ export function FunderDashboard() {
   });
   const [assetFile, setAssetFile] = useState<File | null>(null);
   const [launchSuccess, setLaunchSuccess] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(INITIAL_WALLET_BALANCE);
-  const [transactions, setTransactions] = useState<WalletTransaction[]>(WALLET_TRANSACTIONS);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
 
   const cpmNum = parseFloat(form.cpm) || 0;
   const budgetNum = parseFloat(form.budget) || 0;
   const viewCeiling = cpmNum && budgetNum ? Math.round((budgetNum / cpmNum) * 1000) : 0;
+
+  const refreshWallet = async () => {
+    try {
+      const [bal, txs] = await Promise.all([
+        api.wallet.balance(),
+        api.wallet.transactions(),
+      ]);
+      setWalletBalance(bal.balance);
+      setTransactions(txs);
+    } catch {
+      // fallback silent
+    }
+  };
+
+  useEffect(() => {
+    refreshWallet();
+  }, []);
 
   const sidebarItems: { key: FunderTab; label: string; icon: ReactNode }[] = [
     { key: "overview", label: "Overview", icon: <BarChart2 size={16} /> },
@@ -53,38 +72,28 @@ export function FunderDashboard() {
     }));
   };
 
-  const fundWallet = (amount: number) => {
-    const nextBalance = walletBalance + amount;
-    setWalletBalance(nextBalance);
-    setTransactions((prev) => [
-      {
-        id: Date.now(),
-        date: formatTxDate(),
-        type: "top_up",
-        description: "Wallet top-up via Paystack",
-        amount,
-        balanceAfter: nextBalance,
-      },
-      ...prev,
-    ]);
+  const fundWallet = async (amount: number) => {
+    const res = await api.wallet.initiateTopUp(amount);
+    // Demo: simulate successful Paystack webhook credit
+    await refreshWallet();
+    return res;
   };
 
-  const launchCampaign = () => {
+  const launchCampaign = async () => {
     if (budgetNum <= 0 || walletBalance < budgetNum) return;
-    const campaignName = form.name || "Untitled Campaign";
-    const nextBalance = walletBalance - budgetNum;
-    setWalletBalance(nextBalance);
-    setTransactions((prev) => [
-      {
-        id: Date.now(),
-        date: formatTxDate(),
-        type: "campaign_escrow",
-        description: `${campaignName} (escrow)`,
-        amount: -budgetNum,
-        balanceAfter: nextBalance,
-      },
-      ...prev,
-    ]);
+    await api.campaigns.create({
+      name: form.name || "Untitled Campaign",
+      sourceType: form.sourceType,
+      assetUrl: form.assetUrl || undefined,
+      bestMoments: form.bestMoments || undefined,
+      description: form.description || form.name,
+      platforms: form.platforms,
+      cpm: cpmNum,
+      budget: budgetNum,
+      start: form.start || undefined,
+      end: form.end || undefined,
+    });
+    await refreshWallet();
     setLaunchSuccess(true);
   };
 
@@ -92,7 +101,7 @@ export function FunderDashboard() {
     <DashboardShell
       tab={tab}
       items={sidebarItems}
-      user={{ name: "Spaceship Collective", roleLabel: "Funder", accent: "accent" }}
+      user={{ name: user?.name ?? "Funder", roleLabel: "Funder", accent: "accent" }}
       sidebarOpen={sidebarOpen}
       onSidebarOpen={() => setSidebarOpen(true)}
       onSidebarClose={() => setSidebarOpen(false)}
@@ -124,7 +133,10 @@ export function FunderDashboard() {
         <FunderBilling
           balance={walletBalance}
           transactions={transactions}
-          onFundWallet={fundWallet}
+          onFundWallet={async (amount) => {
+            await fundWallet(amount);
+            await refreshWallet();
+          }}
         />
       )}
     </DashboardShell>

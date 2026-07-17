@@ -8,8 +8,8 @@ export function ViewVerification({
   onViewCountChange,
 }: {
   clips: AwaitingViewsClip[];
-  onConfirmViews: (id: number) => void;
-  onViewCountChange: (id: number, value: string) => void;
+  onConfirmViews: (id: string) => void;
+  onViewCountChange: (id: string, value: string) => void;
 }) {
   return (
     <div className="space-y-4">

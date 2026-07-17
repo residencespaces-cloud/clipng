@@ -1,6 +1,5 @@
 import { Clock } from "lucide-react";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
-import { CAMPAIGNS } from "@/app/data/mock-data";
 import { fmt } from "@/app/lib/format";
 import type { ApprovedClip } from "@/app/types";
 
@@ -10,8 +9,8 @@ export function ApprovedClips({
   onTriggerPayout,
 }: {
   approvedClips: ApprovedClip[];
-  payoutStatus: Record<number, string>;
-  onTriggerPayout: (id: number) => void;
+  payoutStatus: Record<string, string>;
+  onTriggerPayout: (id: string) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -34,10 +33,8 @@ export function ApprovedClips({
               </thead>
               <tbody>
                 {approvedClips.map((c) => {
-                  const campaign = CAMPAIGNS.find((ca) => ca.name === c.campaign);
-                  const cpm = campaign?.cpm ?? 500;
-                  const earnings = Math.round((c.viewsVerified / 1000) * cpm * 0.8);
-                  const pStatus = payoutStatus[c.id] ?? "Pending";
+                  const earnings = c.earningsDue ?? 0;
+                  const pStatus = payoutStatus[c.id] ?? c.status ?? "Pending";
                   return (
                     <tr key={c.id} className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors">
                       <td className="px-4 py-3 font-medium whitespace-nowrap">{c.clipper}</td>

@@ -1,7 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Menu, Settings, X } from "lucide-react";
+import { LogOut, Menu, Settings, X } from "lucide-react";
+import { emitNavigationStart } from "@/app/lib/page-transition";
+import { useAuth } from "@/app/lib/auth/auth-context";
 
 export function DashboardShell<T extends string>({
   tab,
@@ -29,6 +31,13 @@ export function DashboardShell<T extends string>({
       ? "bg-primary/10 border-primary/20"
       : "bg-accent/10 border-accent/20";
   const roleColor = user.accent === "primary" ? "text-primary" : "text-accent";
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    onSidebarClose();
+    emitNavigationStart();
+    await logout();
+  };
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -63,13 +72,19 @@ export function DashboardShell<T extends string>({
             ))}
           </nav>
         </div>
-        {showSettings && (
-          <div className="px-3 pb-4 shrink-0">
+        <div className="px-3 pb-4 shrink-0 space-y-1.5">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded text-sm text-muted-foreground hover:text-red-400 hover:bg-sidebar-accent transition-colors"
+          >
+            <LogOut size={16} /> Logout
+          </button>
+          {showSettings && (
             <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors">
               <Settings size={16} /> Settings
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">

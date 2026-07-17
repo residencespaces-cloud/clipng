@@ -1,37 +1,71 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
+import { api } from "@/app/lib/api/client";
+import { fmt } from "@/app/lib/format";
+import type { MyClip } from "@/app/types";
+import { MY_CLIPS } from "@/app/data/mock-data";
 
 export function ClipperEarnings() {
+  const [summary, setSummary] = useState({
+    totalEarned: "₦53,256",
+    pendingThisWeek: "₦7,560",
+    paidOut: "₦40,416",
+  });
+  const [history, setHistory] = useState<MyClip[]>(MY_CLIPS.filter((c) => c.earnings > 0));
+
+  useEffect(() => {
+    api.submissions.earnings()
+      .then((e) => {
+        setSummary({
+          totalEarned: fmt(e.totalEarned),
+          pendingThisWeek: fmt(e.pendingThisWeek),
+          paidOut: fmt(e.paidOut),
+        });
+      })
+      .catch(() => undefined);
+
+    api.submissions.mine()
+      .then((clips) => setHistory(clips.filter((c) => c.earnings > 0)))
+      .catch(() => undefined);
+  }, []);
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {[
-          { label: "Total Earned", value: "₦53,256", color: "text-primary" },
-          { label: "Pending This Week", value: "₦7,560", color: "text-accent" },
-          { label: "Paid Out", value: "₦40,416", color: "text-foreground" },
+          { label: "Total Earned", value: summary.totalEarned, color: "text-primary" },
+          { label: "Pending This Week", value: summary.pendingThisWeek, color: "text-accent" },
+          { label: "Paid Out", value: summary.paidOut, color: "text-foreground" },
         ].map((s) => (
-          <div key={s.label} className="bg-card border border-border rounded-xl p-5">
+          <div key={s.label} className="bg-card border border-border rounded-xl p-4 sm:p-5 min-w-0">
             <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
-            <p className={`text-3xl font-black ${s.color}`} style={{ fontFamily: "'DM Mono', monospace" }}>{s.value}</p>
+            <p
+              className={`text-2xl sm:text-3xl font-black ${s.color} break-words`}
+              style={{ fontFamily: "'DM Mono', monospace" }}
+            >
+              {s.value}
+            </p>
           </div>
         ))}
       </div>
       <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="px-5 py-3 border-b border-border">
+        <div className="px-4 sm:px-5 py-3 border-b border-border">
           <h3 className="text-sm font-semibold">Payout History</h3>
         </div>
         <div className="divide-y divide-border">
-          {[
-            { date: "Jan 21, 2024", campaign: "Burna Boy — 'City Boys' Drop", views: "84,200", amount: "₦40,416", status: "Paid" },
-            { date: "Jan 28, 2024", campaign: "Falz x MTN Campaign", views: "18,900", amount: "₦7,560", status: "Pending" },
-            { date: "Jan 22, 2024", campaign: "Flutterwave Brand Push", views: "32,100", amount: "₦12,840", status: "Verified" },
-          ].map((p, i) => (
-            <div key={i} className="px-5 py-4 flex items-center justify-between hover:bg-secondary/30 transition-colors">
-              <div>
-                <p className="text-sm font-medium">{p.campaign}</p>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">{p.date} · {p.views} views</p>
+          {history.map((p) => (
+            <div
+              key={p.id}
+              className="px-4 sm:px-5 py-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-secondary/30 transition-colors"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium break-words">{p.campaign}</p>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">{p.date} · {p.views.toLocaleString()} views</p>
               </div>
-              <div className="text-right space-y-1">
-                <p className="font-mono font-bold text-primary" style={{ fontFamily: "'DM Mono', monospace" }}>{p.amount}</p>
+              <div className="w-full sm:w-auto text-left sm:text-right space-y-1">
+                <p className="font-mono font-bold text-primary" style={{ fontFamily: "'DM Mono', monospace" }}>{fmt(p.earnings)}</p>
                 <StatusBadge status={p.status} />
               </div>
             </div>

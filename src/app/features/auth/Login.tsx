@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { emitNavigationStart } from "@/app/lib/page-transition";
+import { useAuth } from "@/app/lib/auth/auth-context";
 import type { AuthRole } from "@/app/types";
 import { AuthShell } from "./AuthShell";
 import { Field } from "./Field";
@@ -13,6 +14,7 @@ import { RolePicker } from "./RolePicker";
 
 export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
   const router = useRouter();
+  const { login } = useAuth();
   const [role, setRole] = useState<AuthRole>(initialRole);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +22,7 @@ export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     if (!email.trim() || !password.trim()) {
@@ -28,11 +30,14 @@ export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
       emitNavigationStart();
-      router.push(role === "clipper" ? "/clipper" : "/funder");
-    }, 700);
+      await login(email.trim(), password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -54,14 +59,14 @@ export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
             <RolePicker role={role} onChange={setRole} />
           </div>
 
-          <Field label="Email or phone">
+          <Field label="Email">
             <div className="relative">
               <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
-                type="text"
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@email.com or 080…"
+                placeholder="you@email.com"
                 className={`${inputClass} pl-9`}
                 autoComplete="username"
               />
@@ -88,14 +93,6 @@ export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
               </button>
             </div>
           </Field>
-
-          <div className="flex items-center justify-between text-xs">
-            <label className="flex items-center gap-2 text-muted-foreground cursor-pointer">
-              <input type="checkbox" className="rounded border-border bg-input-background" />
-              Remember me
-            </label>
-            <button type="button" className="text-primary hover:underline">Forgot password?</button>
-          </div>
 
           {error && (
             <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5">

@@ -7,7 +7,7 @@ export type CreateStep = 1 | 2 | 3;
 export type SourceType = "video" | "vod";
 
 export interface Campaign {
-  id: number;
+  id: string;
   name: string;
   funder: string;
   cpm: number;
@@ -24,7 +24,7 @@ export interface Campaign {
 }
 
 export interface PendingClipRow {
-  id: number;
+  id: string;
   clipper: string;
   campaign: string;
   platform: string;
@@ -47,10 +47,11 @@ export interface AwaitingViewsClip extends PendingClipRow {
 export interface ApprovedClip extends PendingClipRow {
   viewsVerified: number;
   approvedDate: string;
+  earningsDue?: number;
 }
 
 export interface WalletTransaction {
-  id: number;
+  id: string;
   date: string;
   type: WalletTransactionType;
   description: string;
@@ -59,7 +60,7 @@ export interface WalletTransaction {
 }
 
 export interface MyClip {
-  id: number;
+  id: string;
   campaign: string;
   platform: string;
   date: string;
@@ -69,7 +70,7 @@ export interface MyClip {
 }
 
 export interface Payout {
-  id: number;
+  id: string;
   date: string;
   clipper: string;
   campaign: string;
