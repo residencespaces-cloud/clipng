@@ -1,7 +1,8 @@
 export type AuthRole = "clipper" | "funder";
 export type ClipperTab = "overview" | "campaigns" | "clips" | "earnings";
 export type FunderTab = "overview" | "campaigns" | "create" | "billing";
-export type AdminTab = "pending" | "approved" | "all-campaigns" | "payouts";
+export type AdminTab = "pending" | "view-verify" | "approved" | "all-campaigns" | "payouts";
+export type WalletTransactionType = "top_up" | "campaign_escrow";
 export type CreateStep = 1 | 2 | 3;
 export type SourceType = "video" | "vod";
 
@@ -35,12 +36,26 @@ export interface PendingClipRow {
 }
 
 export interface PendingClip extends PendingClipRow {
-  viewCount: string;
   codeVerified: boolean;
+}
+
+export interface AwaitingViewsClip extends PendingClipRow {
+  approvedDate: string;
+  viewCount: string;
 }
 
 export interface ApprovedClip extends PendingClipRow {
   viewsVerified: number;
+  approvedDate: string;
+}
+
+export interface WalletTransaction {
+  id: number;
+  date: string;
+  type: WalletTransactionType;
+  description: string;
+  amount: number;
+  balanceAfter: number;
 }
 
 export interface MyClip {

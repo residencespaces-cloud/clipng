@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { emitNavigationStart } from "@/app/lib/page-transition";
 import type { AuthRole } from "@/app/types";
 import { AuthShell } from "./AuthShell";
 import { Field } from "./Field";
@@ -29,12 +30,13 @@ export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
+      emitNavigationStart();
       router.push(role === "clipper" ? "/clipper" : "/funder");
     }, 700);
   };
 
   return (
-    <AuthShell onBack={() => router.push("/")}>
+    <AuthShell onBack={() => { emitNavigationStart(); router.push("/"); }}>
       <div className="w-full max-w-md">
         <div className="mb-8">
           <p className="text-primary text-xs font-mono uppercase tracking-widest mb-2">Welcome back</p>

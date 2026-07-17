@@ -14,13 +14,16 @@ export function CreateCampaign({
   setAssetFile,
   createStep,
   setCreateStep,
-  paidSuccess,
-  setPaidSuccess,
+  launchSuccess,
+  setLaunchSuccess,
   togglePlatform,
   cpmNum,
   budgetNum,
   viewCeiling,
+  walletBalance,
+  onLaunch,
   onViewCampaigns,
+  onFundWallet,
 }: {
   form: CreateCampaignForm;
   setForm: Dispatch<SetStateAction<CreateCampaignForm>>;
@@ -28,13 +31,16 @@ export function CreateCampaign({
   setAssetFile: (file: File | null) => void;
   createStep: CreateStep;
   setCreateStep: (step: CreateStep) => void;
-  paidSuccess: boolean;
-  setPaidSuccess: (v: boolean) => void;
+  launchSuccess: boolean;
+  setLaunchSuccess: (v: boolean) => void;
   togglePlatform: (p: string) => void;
   cpmNum: number;
   budgetNum: number;
   viewCeiling: number;
+  walletBalance: number;
+  onLaunch: () => void;
   onViewCampaigns: (tab: FunderTab) => void;
+  onFundWallet: (tab: FunderTab) => void;
 }) {
   return (
     <div className="max-w-2xl space-y-6">
@@ -48,17 +54,19 @@ export function CreateCampaign({
           </div>
         ))}
         <span className="ml-2 text-xs text-muted-foreground">
-          {createStep === 1 ? "Campaign Details" : createStep === 2 ? "Budget & CPM" : "Review & Pay"}
+          {createStep === 1 ? "Campaign Details" : createStep === 2 ? "Budget & CPM" : "Review & Launch"}
         </span>
       </div>
 
-      {paidSuccess ? (
+      {launchSuccess ? (
         <div className="bg-card border border-primary/30 rounded-xl p-10 text-center space-y-4">
           <CheckCircle size={48} className="text-primary mx-auto" />
           <h3 className="text-2xl font-black" style={{ fontFamily: "'Big Shoulders Display', sans-serif" }}>Campaign Live!</h3>
-          <p className="text-muted-foreground text-sm">Payment confirmed via Paystack. Your campaign is now open to all clippers.</p>
+          <p className="text-muted-foreground text-sm">
+            Budget debited from your wallet and held in escrow. Your campaign is now open to all clippers.
+          </p>
           <button
-            onClick={() => { onViewCampaigns("campaigns"); setPaidSuccess(false); setCreateStep(1); }}
+            onClick={() => { onViewCampaigns("campaigns"); setLaunchSuccess(false); setCreateStep(1); }}
             className="px-6 py-2 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all"
           >
             View Campaigns
@@ -93,8 +101,10 @@ export function CreateCampaign({
               cpmNum={cpmNum}
               budgetNum={budgetNum}
               viewCeiling={viewCeiling}
+              walletBalance={walletBalance}
               setCreateStep={setCreateStep}
-              onPay={() => setPaidSuccess(true)}
+              onLaunch={onLaunch}
+              onFundWallet={onFundWallet}
             />
           )}
         </div>

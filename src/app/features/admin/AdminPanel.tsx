@@ -2,38 +2,60 @@
 
 import { useState } from "react";
 import { PENDING_CLIPS } from "@/app/data/mock-data";
-import type { AdminTab, ApprovedClip, PendingClip } from "@/app/types";
+import type { AdminTab, ApprovedClip, AwaitingViewsClip, PendingClip } from "@/app/types";
 import { AdminPayouts } from "./AdminPayouts";
 import { AllCampaigns } from "./AllCampaigns";
 import { ApprovedClips } from "./ApprovedClips";
 import { PendingReview } from "./PendingReview";
+import { ViewVerification } from "./ViewVerification";
+
+function todayLabel() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export function AdminPanel() {
   const [tab, setTab] = useState<AdminTab>("pending");
-  const [clips, setClips] = useState<PendingClip[]>(
+  const [pendingClips, setPendingClips] = useState<PendingClip[]>(
     PENDING_CLIPS.map((c) => ({
       ...c,
-      viewCount: "",
       codeVerified: false,
     })),
   );
-  const [approvedClips, setApprovedClips] = useState<ApprovedClip[]>([]);
+  const [awaitingViews, setAwaitingViews] = useState<AwaitingViewsClip[]>([]);
+  const [readyForPayout, setReadyForPayout] = useState<ApprovedClip[]>([]);
   const [payoutStatus, setPayoutStatus] = useState<Record<number, string>>({});
 
-  const approve = (id: number) => {
-    const clip = clips.find((c) => c.id === id);
+  const approveSubmission = (id: number) => {
+    const clip = pendingClips.find((c) => c.id === id);
     if (!clip?.codeVerified) return;
-    const viewsVerified = parseInt(clip.viewCount) || 0;
-    setApprovedClips((prev) => [...prev, { ...clip, viewsVerified }]);
-    setClips((prev) => prev.filter((c) => c.id !== id));
+    setAwaitingViews((prev) => [
+      ...prev,
+      { ...clip, approvedDate: todayLabel(), viewCount: "" },
+    ]);
+    setPendingClips((prev) => prev.filter((c) => c.id !== id));
   };
 
-  const reject = (id: number) => setClips((prev) => prev.filter((c) => c.id !== id));
-  const triggerPayout = (id: number) => setPayoutStatus((prev) => ({ ...prev, [id]: "Triggered" }));
+  const rejectSubmission = (id: number) =>
+    setPendingClips((prev) => prev.filter((c) => c.id !== id));
+
+  const confirmViews = (id: number) => {
+    const clip = awaitingViews.find((c) => c.id === id);
+    const viewsVerified = parseInt(clip?.viewCount ?? "") || 0;
+    if (!clip || viewsVerified <= 0) return;
+    setReadyForPayout((prev) => [
+      ...prev,
+      { ...clip, viewsVerified, approvedDate: clip.approvedDate },
+    ]);
+    setAwaitingViews((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const triggerPayout = (id: number) =>
+    setPayoutStatus((prev) => ({ ...prev, [id]: "Triggered" }));
 
   const adminTabs: { key: AdminTab; label: string }[] = [
     { key: "pending", label: "Pending Review" },
-    { key: "approved", label: "Approved Clips" },
+    { key: "view-verify", label: "View Verification" },
+    { key: "approved", label: "Ready for Payout" },
     { key: "all-campaigns", label: "All Campaigns" },
     { key: "payouts", label: "Payouts" },
   ];
@@ -47,41 +69,49 @@ export function AdminPanel() {
           </span>
           <span className="text-xs font-mono bg-accent/15 text-accent border border-accent/20 px-2 py-0.5 rounded">ADMIN</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-          <span className="text-xs text-muted-foreground font-mono">{clips.length} pending</span>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
+          <span>{pendingClips.length} pending</span>
+          <span className="text-border">·</span>
+          <span>{awaitingViews.length} awaiting views</span>
         </div>
       </header>
 
       <div className="flex border-b border-border px-6 overflow-x-auto">
-        {adminTabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-3 text-sm border-b-2 transition-colors -mb-px whitespace-nowrap ${tab === t.key ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-          >
-            {t.label}
-            {t.key === "pending" && clips.length > 0 && (
-              <span className="ml-2 text-xs bg-primary/15 text-primary border border-primary/20 rounded-full px-1.5 py-0.5">{clips.length}</span>
-            )}
-          </button>
-        ))}
+        {adminTabs.map((t) => {
+          const count =
+            t.key === "pending"
+              ? pendingClips.length
+              : t.key === "view-verify"
+                ? awaitingViews.length
+                : t.key === "approved"
+                  ? readyForPayout.filter((c) => (payoutStatus[c.id] ?? "Pending") === "Pending").length
+                  : 0;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-3 text-sm border-b-2 transition-colors -mb-px whitespace-nowrap ${tab === t.key ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+            >
+              {t.label}
+              {count > 0 && (
+                <span className="ml-2 text-xs bg-primary/15 text-primary border border-primary/20 rounded-full px-1.5 py-0.5">{count}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <div className="p-6">
         {tab === "pending" && (
           <PendingReview
-            clips={clips}
-            onApprove={approve}
-            onReject={reject}
+            clips={pendingClips}
+            onApprove={approveSubmission}
+            onReject={rejectSubmission}
             onApproveAll={() =>
-              clips.filter((c) => c.codeVerified).forEach((c) => approve(c.id))
-            }
-            onViewCountChange={(id, value) =>
-              setClips((prev) => prev.map((cl) => (cl.id === id ? { ...cl, viewCount: value } : cl)))
+              pendingClips.filter((c) => c.codeVerified).forEach((c) => approveSubmission(c.id))
             }
             onCodeVerifiedChange={(id, verified) =>
-              setClips((prev) =>
+              setPendingClips((prev) =>
                 prev.map((clip) =>
                   clip.id === id ? { ...clip, codeVerified: verified } : clip,
                 ),
@@ -89,9 +119,20 @@ export function AdminPanel() {
             }
           />
         )}
+        {tab === "view-verify" && (
+          <ViewVerification
+            clips={awaitingViews}
+            onConfirmViews={confirmViews}
+            onViewCountChange={(id, value) =>
+              setAwaitingViews((prev) =>
+                prev.map((cl) => (cl.id === id ? { ...cl, viewCount: value } : cl)),
+              )
+            }
+          />
+        )}
         {tab === "approved" && (
           <ApprovedClips
-            approvedClips={approvedClips}
+            approvedClips={readyForPayout}
             payoutStatus={payoutStatus}
             onTriggerPayout={triggerPayout}
           />

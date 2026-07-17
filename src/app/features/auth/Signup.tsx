@@ -15,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import type { AuthRole } from "@/app/types";
+import { emitNavigationStart } from "@/app/lib/page-transition";
 import { AuthShell } from "./AuthShell";
 import { Field } from "./Field";
 import { inputClass } from "./inputClass";
@@ -57,12 +58,13 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
+      emitNavigationStart();
       router.push(role === "clipper" ? "/clipper" : "/funder");
     }, 800);
   };
 
   return (
-    <AuthShell onBack={() => router.push("/")}>
+    <AuthShell onBack={() => { emitNavigationStart(); router.push("/"); }}>
       <div className="w-full max-w-lg">
         <div className="mb-8">
           <p className="text-primary text-xs font-mono uppercase tracking-widest mb-2">Join the loop</p>

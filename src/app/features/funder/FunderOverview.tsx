@@ -3,12 +3,12 @@ import { CAMPAIGNS } from "@/app/data/mock-data";
 import { fmt } from "@/app/lib/format";
 import type { FunderTab } from "@/app/types";
 
-export function FunderOverview({ onTab }: { onTab: (tab: FunderTab) => void }) {
+export function FunderOverview({ onTab, walletBalance }: { onTab: (tab: FunderTab) => void; walletBalance: number }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Spent", value: "₦800K", color: "text-accent" },
+          { label: "Wallet Balance", value: fmt(walletBalance), color: "text-accent" },
           { label: "Views Delivered", value: "850K", color: "text-primary" },
           { label: "Active Campaigns", value: "3", color: "text-foreground" },
           { label: "Clips Submitted", value: "153", color: "text-foreground" },

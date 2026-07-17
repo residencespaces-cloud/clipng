@@ -7,27 +7,30 @@ export function PendingReview({
   onApprove,
   onReject,
   onApproveAll,
-  onViewCountChange,
   onCodeVerifiedChange,
 }: {
   clips: PendingClip[];
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
   onApproveAll: () => void;
-  onViewCountChange: (id: number, value: string) => void;
   onCodeVerifiedChange: (id: number, verified: boolean) => void;
 }) {
   const verifiedCount = clips.filter((clip) => clip.codeVerified).length;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div>
         <h3 className="text-sm font-semibold">Clips Awaiting Review</h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          Verify the post link and caption code. Approve or reject — view counts are verified separately.
+        </p>
+      </div>
+      <div className="flex items-center justify-end">
         {clips.length > 0 && (
           <button
             onClick={onApproveAll}
             disabled={verifiedCount === 0}
-            className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary hover:text-primary-foreground transition-all"
+            className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary hover:text-primary-foreground transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Approve Verified ({verifiedCount})
           </button>
@@ -44,7 +47,7 @@ export function PendingReview({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  {["Clipper", "Campaign", "Platform", "Date", "Proof code", "Link", "Views (manual)", "Actions"].map((h) => (
+                  {["Clipper", "Campaign", "Platform", "Submitted", "Proof code", "Link", "Actions"].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-xs text-muted-foreground font-medium whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -78,22 +81,13 @@ export function PendingReview({
                       </a>
                     </td>
                     <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={c.viewCount}
-                        onChange={(e) => onViewCountChange(c.id, e.target.value)}
-                        className="w-24 bg-input-background border border-border rounded px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button
                           onClick={() => onApprove(c.id)}
                           disabled={!c.codeVerified}
                           title={
                             c.codeVerified
-                              ? "Approve clip"
+                              ? "Approve post submission"
                               : "Verify the caption code first"
                           }
                           className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary hover:text-primary-foreground transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary/10 disabled:hover:text-primary"

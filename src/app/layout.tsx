@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Suspense } from "react";
+import { PageLoader } from "@/app/components/shared/PageLoader";
+import { RouteTransition } from "@/app/components/shared/RouteTransition";
 import "@/styles/index.css";
 
 export const metadata: Metadata = {
@@ -16,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className="h-full m-0 bg-background text-foreground antialiased">
-        {children}
+        <Suspense fallback={<PageLoader />}>
+          <RouteTransition>{children}</RouteTransition>
+        </Suspense>
       </body>
     </html>
   );

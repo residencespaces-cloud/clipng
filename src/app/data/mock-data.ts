@@ -1,4 +1,4 @@
-import type { Campaign, MyClip, Payout, PendingClipRow } from "../types";
+import type { Campaign, MyClip, Payout, PendingClipRow, WalletTransaction } from "../types";
 
 export const CAMPAIGNS: Campaign[] = [
   {
@@ -88,4 +88,14 @@ export const PAYOUTS: Payout[] = [
   { id: 3, date: "2024-01-21", clipper: "Fatima Bello", campaign: "Flutterwave Brand Push", amount: 16000, status: "Paid" },
   { id: 4, date: "2024-01-28", clipper: "Tunde Adeleke", campaign: "Burna Boy — 'City Boys' Drop", amount: 19200, status: "Triggered" },
   { id: 5, date: "2024-01-28", clipper: "Chisom Eze", campaign: "Flutterwave Brand Push", amount: 8400, status: "Pending" },
+];
+
+export const INITIAL_WALLET_BALANCE = 750_000;
+
+export const WALLET_TRANSACTIONS: WalletTransaction[] = [
+  { id: 1, date: "Dec 01, 2023", type: "top_up", description: "Wallet top-up via Paystack", amount: 500_000, balanceAfter: 500_000 },
+  { id: 2, date: "Dec 20, 2023", type: "campaign_escrow", description: "Falz x MTN Campaign (escrow)", amount: -200_000, balanceAfter: 300_000 },
+  { id: 3, date: "Jan 10, 2024", type: "top_up", description: "Wallet top-up via Paystack", amount: 350_000, balanceAfter: 650_000 },
+  { id: 4, date: "Jan 10, 2024", type: "campaign_escrow", description: "Burna Boy — City Boys Drop (escrow)", amount: -300_000, balanceAfter: 350_000 },
+  { id: 5, date: "Jan 15, 2024", type: "top_up", description: "Wallet top-up via Paystack", amount: 400_000, balanceAfter: 750_000 },
 ];

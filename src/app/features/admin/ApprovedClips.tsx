@@ -15,11 +15,11 @@ export function ApprovedClips({
 }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold">Approved — Ready for Payout</h3>
+      <h3 className="text-sm font-semibold">Ready for Payout</h3>
       {approvedClips.length === 0 ? (
         <div className="bg-card border border-border rounded-xl p-12 text-center text-muted-foreground">
           <Clock size={32} className="mx-auto mb-3 text-muted-foreground/40" />
-          <p className="text-sm">Approved clips appear here after you review them in the Pending tab.</p>
+          <p className="text-sm">Clips appear here after view counts are confirmed in the View Verification tab.</p>
         </div>
       ) : (
         <div className="bg-card border border-border rounded-xl overflow-hidden">

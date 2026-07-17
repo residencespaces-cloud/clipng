@@ -3,11 +3,16 @@
 import { useState, type ReactNode } from "react";
 import { BarChart2, Film, Upload, Wallet } from "lucide-react";
 import { DashboardShell } from "@/app/components/shared/DashboardShell";
-import type { CreateCampaignForm, CreateStep, FunderTab } from "@/app/types";
+import { INITIAL_WALLET_BALANCE, WALLET_TRANSACTIONS } from "@/app/data/mock-data";
+import type { CreateCampaignForm, CreateStep, FunderTab, WalletTransaction } from "@/app/types";
 import { CreateCampaign } from "./CreateCampaign";
 import { FunderBilling } from "./FunderBilling";
 import { FunderCampaigns } from "./FunderCampaigns";
 import { FunderOverview } from "./FunderOverview";
+
+function formatTxDate() {
+  return new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+}
 
 export function FunderDashboard() {
   const [tab, setTab] = useState<FunderTab>("overview");
@@ -26,7 +31,9 @@ export function FunderDashboard() {
     end: "",
   });
   const [assetFile, setAssetFile] = useState<File | null>(null);
-  const [paidSuccess, setPaidSuccess] = useState(false);
+  const [launchSuccess, setLaunchSuccess] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(INITIAL_WALLET_BALANCE);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>(WALLET_TRANSACTIONS);
 
   const cpmNum = parseFloat(form.cpm) || 0;
   const budgetNum = parseFloat(form.budget) || 0;
@@ -46,6 +53,41 @@ export function FunderDashboard() {
     }));
   };
 
+  const fundWallet = (amount: number) => {
+    const nextBalance = walletBalance + amount;
+    setWalletBalance(nextBalance);
+    setTransactions((prev) => [
+      {
+        id: Date.now(),
+        date: formatTxDate(),
+        type: "top_up",
+        description: "Wallet top-up via Paystack",
+        amount,
+        balanceAfter: nextBalance,
+      },
+      ...prev,
+    ]);
+  };
+
+  const launchCampaign = () => {
+    if (budgetNum <= 0 || walletBalance < budgetNum) return;
+    const campaignName = form.name || "Untitled Campaign";
+    const nextBalance = walletBalance - budgetNum;
+    setWalletBalance(nextBalance);
+    setTransactions((prev) => [
+      {
+        id: Date.now(),
+        date: formatTxDate(),
+        type: "campaign_escrow",
+        description: `${campaignName} (escrow)`,
+        amount: -budgetNum,
+        balanceAfter: nextBalance,
+      },
+      ...prev,
+    ]);
+    setLaunchSuccess(true);
+  };
+
   return (
     <DashboardShell
       tab={tab}
@@ -56,7 +98,7 @@ export function FunderDashboard() {
       onSidebarClose={() => setSidebarOpen(false)}
       onTab={(key) => { setTab(key); setSidebarOpen(false); }}
     >
-      {tab === "overview" && <FunderOverview onTab={setTab} />}
+      {tab === "overview" && <FunderOverview onTab={setTab} walletBalance={walletBalance} />}
       {tab === "campaigns" && <FunderCampaigns />}
       {tab === "create" && (
         <CreateCampaign
@@ -66,16 +108,25 @@ export function FunderDashboard() {
           setAssetFile={setAssetFile}
           createStep={createStep}
           setCreateStep={setCreateStep}
-          paidSuccess={paidSuccess}
-          setPaidSuccess={setPaidSuccess}
+          launchSuccess={launchSuccess}
+          setLaunchSuccess={setLaunchSuccess}
           togglePlatform={togglePlatform}
           cpmNum={cpmNum}
           budgetNum={budgetNum}
           viewCeiling={viewCeiling}
+          walletBalance={walletBalance}
+          onLaunch={launchCampaign}
           onViewCampaigns={setTab}
+          onFundWallet={setTab}
         />
       )}
-      {tab === "billing" && <FunderBilling />}
+      {tab === "billing" && (
+        <FunderBilling
+          balance={walletBalance}
+          transactions={transactions}
+          onFundWallet={fundWallet}
+        />
+      )}
     </DashboardShell>
   );
 }
