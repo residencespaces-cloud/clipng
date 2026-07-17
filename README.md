@@ -6,7 +6,7 @@ Everything runs in this Next.js app (no separate Nest server required).
 - Next.js App Router + Route Handlers (`/api/*`)
 - Prisma + PostgreSQL (use free Neon)
 - JWT auth (`jose` + refresh tokens)
-- Vercel Cron for campaign expiry / notifications
+- Vercel Cron for campaign expiry / notifications (daily on Hobby)
 
 ## Local setup
 
