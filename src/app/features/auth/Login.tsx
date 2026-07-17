@@ -31,10 +31,10 @@ export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
     }
     setLoading(true);
     try {
+      await login(email.trim(), password, role);
       emitNavigationStart();
-      await login(email.trim(), password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Login failed. Check your details and try again.");
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
 
         <p className="text-sm text-muted-foreground text-center mt-6">
           New to ClipNG?{" "}
-          <Link href="/signup" className="text-primary font-medium hover:underline">
+          <Link href={`/signup?role=${role}`} className="text-primary font-medium hover:underline">
             Create an account
           </Link>
         </p>

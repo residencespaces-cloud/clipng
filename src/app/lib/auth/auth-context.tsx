@@ -9,7 +9,7 @@ type AuthUser = { id: string; email: string; role: string; name: string };
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, expectedRole?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -39,10 +39,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser().finally(() => setLoading(false));
   }, [refreshUser]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, expectedRole?: string) => {
     const tokens = await api.auth.login({ email, password });
     setTokens(tokens);
     const me = await api.auth.me();
+    if (expectedRole && me.role !== "admin" && me.role !== expectedRole) {
+      setTokens(null);
+      setUser(null);
+      throw new Error(
+        `This email is registered as a ${me.role}. Switch the role toggle and try again.`,
+      );
+    }
     setUser(me);
     const dest = me.role === "admin" ? "/admin" : me.role === "funder" ? "/funder" : "/clipper";
     router.push(dest);

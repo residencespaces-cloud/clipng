@@ -58,9 +58,25 @@ export async function signupFunder(body: {
 
 export async function login(email: string, password: string) {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-  if (!user) return null;
+  if (!user) {
+    throw Object.assign(new Error("No account found with that email. Create an account first."), {
+      status: 404,
+      code: "ACCOUNT_NOT_FOUND",
+    });
+  }
   const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) return null;
+  if (!valid) {
+    throw Object.assign(new Error("Incorrect password. Try again."), {
+      status: 401,
+      code: "INVALID_PASSWORD",
+    });
+  }
+  if (user.status === "suspended") {
+    throw Object.assign(new Error("This account has been suspended. Contact support."), {
+      status: 403,
+      code: "ACCOUNT_SUSPENDED",
+    });
+  }
   return issueTokens(user);
 }
 
