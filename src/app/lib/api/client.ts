@@ -77,9 +77,16 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return res.json() as Promise<T>;
 }
 
-export async function publicFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
-  if (!res.ok) throw new Error("Request failed");
+export async function publicFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  if (!headers.has('Content-Type') && init.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message ?? "Request failed");
+  }
   return res.json() as Promise<T>;
 }
 
@@ -113,10 +120,18 @@ export const api = {
     },
   },
   profile: {
-    updateClipper: (body: { bankName: string; accountNumber: string }) =>
+    updateClipper: (body: { bankCode: string; bankName: string; accountNumber: string }) =>
       apiFetch('/profile/clipper', { method: 'PATCH', body: JSON.stringify(body) }),
     updateFunder: (body: { businessName: string; phone?: string }) =>
       apiFetch('/profile/funder', { method: 'PATCH', body: JSON.stringify(body) }),
+  },
+  banks: {
+    list: () => publicFetch<{ name: string; code: string }[]>('/banks'),
+    resolve: (bankCode: string, accountNumber: string) =>
+      publicFetch<{ accountNumber: string; accountName: string }>('/banks/resolve', {
+        method: 'POST',
+        body: JSON.stringify({ bankCode, accountNumber }),
+      }),
   },
   campaigns: {
     public: () => publicFetch<import('@/app/types').Campaign[]>('/campaigns/public'),

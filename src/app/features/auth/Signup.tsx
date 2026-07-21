@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import type { AuthRole } from "@/app/types";
 import { emitNavigationStart } from "@/app/lib/page-transition";
-import { api, setTokens } from "@/app/lib/api/client";
+import { useAuth } from "@/app/lib/auth/auth-context";
+import { BankAccountFields, type BankAccountValue } from "@/app/components/shared/BankAccountFields";
 import { AuthShell } from "./AuthShell";
 import { Field } from "./Field";
 import { inputClass } from "./inputClass";
@@ -24,18 +25,24 @@ import { RolePicker } from "./RolePicker";
 
 export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
   const router = useRouter();
+  const { signupClipper, signupFunder } = useAuth();
   const [role, setRole] = useState<AuthRole>(initialRole);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [bankVerified, setBankVerified] = useState(false);
+  const [bank, setBank] = useState<BankAccountValue>({
+    bankCode: "",
+    bankName: "",
+    accountNumber: "",
+    accountName: "",
+  });
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
     password: "",
     business: "",
-    bankName: "",
-    accountNumber: "",
   });
 
   const set = (key: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
@@ -52,32 +59,38 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
       setError("Add your business / brand name to continue.");
       return;
     }
-    if (role === "clipper" && (!form.bankName.trim() || !form.accountNumber.trim())) {
-      setError("Add bank details so we can pay you via Paystack.");
-      return;
+    if (role === "clipper") {
+      if (!bank.bankCode || bank.accountNumber.length !== 10) {
+        setError("Select your bank and enter a 10-digit account number.");
+        return;
+      }
+      if (!bankVerified || !bank.accountName) {
+        setError("Wait for Paystack to verify your account name before continuing.");
+        return;
+      }
     }
     setLoading(true);
     try {
+      if (role === "clipper") {
+        await signupClipper({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          password: form.password,
+          bankCode: bank.bankCode,
+          bankName: bank.bankName,
+          accountNumber: bank.accountNumber,
+        });
+      } else {
+        await signupFunder({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          password: form.password,
+          business: form.business,
+        });
+      }
       emitNavigationStart();
-      const tokens =
-        role === "clipper"
-          ? await api.auth.signupClipper({
-              name: form.name,
-              email: form.email,
-              phone: form.phone,
-              password: form.password,
-              bankName: form.bankName,
-              accountNumber: form.accountNumber,
-            })
-          : await api.auth.signupFunder({
-              name: form.name,
-              email: form.email,
-              phone: form.phone,
-              password: form.password,
-              business: form.business,
-            });
-      setTokens(tokens);
-      router.push(role === "clipper" ? "/clipper" : "/funder");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
@@ -162,17 +175,14 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
           ) : (
             <div className="space-y-4 pt-1 border-t border-border">
               <p className="text-xs font-mono text-accent uppercase tracking-widest pt-3">Payout details</p>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Bank name">
-                  <input type="text" value={form.bankName} onChange={set("bankName")} placeholder="GTBank" className={inputClass} />
-                </Field>
-                <Field label="Account number">
-                  <input type="text" value={form.accountNumber} onChange={set("accountNumber")} placeholder="0123456789" className={inputClass} inputMode="numeric" />
-                </Field>
-              </div>
+              <BankAccountFields
+                value={bank}
+                onChange={setBank}
+                onVerifiedChange={setBankVerified}
+              />
               <div className="flex items-start gap-2 text-xs text-muted-foreground bg-secondary rounded-lg px-3 py-2.5">
                 <Wallet size={14} className="text-primary shrink-0 mt-0.5" />
-                Weekly Paystack payouts land in this account once views are verified.
+                We verify your account with Paystack so weekly payouts land in the right account.
               </div>
             </div>
           )}
@@ -186,7 +196,7 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (role === "clipper" && !bankVerified)}
             className="w-full py-3 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all disabled:opacity-60"
           >
             {loading ? "Creating account…" : `Create ${role === "clipper" ? "Clipper" : "Funder"} account`}

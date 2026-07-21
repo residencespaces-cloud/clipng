@@ -4,21 +4,40 @@ import { Prisma } from "@prisma/client";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { hashToken, issueTokens } from "@/server/auth";
-import { createTransferRecipient, findBankCode } from "@/server/paystack";
+import { createTransferRecipient, resolveAccountNumber } from "@/server/paystack";
 import { isValidEmail, isValidPassword, isValidPhone } from "@/server/validation";
 import { notifyUser } from "@/server/services/notifications.service";
 
-async function createClipperRecipient(name: string, bankName: string, accountNumber: string) {
+async function verifyAndCreateRecipient(
+  bankCode: string,
+  bankName: string,
+  accountNumber: string,
+) {
+  const resolved = await resolveAccountNumber(accountNumber, bankCode);
+  const acct = resolved.account_number;
+  const accountName = resolved.account_name;
+
   if (!process.env.PAYSTACK_SECRET_KEY) {
-    return `dev_recipient_${accountNumber}`;
+    return {
+      bankName,
+      accountNumber: acct,
+      accountName,
+      recipientCode: `dev_recipient_${acct}`,
+    };
   }
-  const bankCode = await findBankCode(bankName);
+
   const recipient = await createTransferRecipient({
-    name,
-    accountNumber,
+    name: accountName,
+    accountNumber: acct,
     bankCode,
   });
-  return recipient.recipient_code;
+
+  return {
+    bankName,
+    accountNumber: acct,
+    accountName,
+    recipientCode: recipient.recipient_code,
+  };
 }
 
 export async function signupClipper(body: {
@@ -26,16 +45,18 @@ export async function signupClipper(body: {
   email: string;
   phone: string;
   password: string;
+  bankCode: string;
   bankName: string;
   accountNumber: string;
 }) {
   if (!isValidEmail(body.email)) throw new Error("Enter a valid email address.");
   if (!isValidPassword(body.password)) throw new Error("Password must be at least 8 characters.");
   if (!isValidPhone(body.phone)) throw new Error("Enter a valid phone number.");
+  if (!body.bankCode?.trim()) throw new Error("Select your bank.");
 
-  let recipientCode: string | undefined;
+  let bankDetails: Awaited<ReturnType<typeof verifyAndCreateRecipient>>;
   try {
-    recipientCode = await createClipperRecipient(body.name, body.bankName, body.accountNumber);
+    bankDetails = await verifyAndCreateRecipient(body.bankCode, body.bankName, body.accountNumber);
   } catch (e) {
     throw new Error(
       e instanceof Error ? e.message : "Could not verify bank details with Paystack.",
@@ -53,9 +74,9 @@ export async function signupClipper(body: {
           create: {
             displayName: body.name,
             phone: body.phone,
-            bankName: body.bankName,
-            accountNumber: body.accountNumber,
-            paystackRecipientCode: recipientCode,
+            bankName: bankDetails.bankName,
+            accountNumber: bankDetails.accountNumber,
+            paystackRecipientCode: bankDetails.recipientCode,
           },
         },
       },
@@ -117,27 +138,24 @@ export async function signupFunder(body: {
 
 export async function updateClipperProfile(
   userId: string,
-  body: { bankName: string; accountNumber: string },
+  body: { bankCode: string; bankName: string; accountNumber: string },
 ) {
   const profile = await prisma.clipperProfile.findUnique({ where: { userId } });
   if (!profile) throw new Error("Clipper profile not found");
+  if (!body.bankCode?.trim()) throw new Error("Select your bank.");
 
-  const recipientCode = await createClipperRecipient(
-    profile.displayName,
-    body.bankName,
-    body.accountNumber,
-  );
+  const bankDetails = await verifyAndCreateRecipient(body.bankCode, body.bankName, body.accountNumber);
 
   await prisma.clipperProfile.update({
     where: { userId },
     data: {
-      bankName: body.bankName,
-      accountNumber: body.accountNumber,
-      paystackRecipientCode: recipientCode,
+      bankName: bankDetails.bankName,
+      accountNumber: bankDetails.accountNumber,
+      paystackRecipientCode: bankDetails.recipientCode,
     },
   });
 
-  return { success: true };
+  return { success: true, accountName: bankDetails.accountName };
 }
 
 export async function updateFunderProfile(

@@ -19,6 +19,22 @@ type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string, expectedRole?: string) => Promise<void>;
+  signupClipper: (body: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    bankCode: string;
+    bankName: string;
+    accountNumber: string;
+  }) => Promise<void>;
+  signupFunder: (body: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    business: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -64,6 +80,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push(dest);
   };
 
+  const completeSignup = async (tokens: { accessToken: string; refreshToken: string }) => {
+    setTokens(tokens);
+    const me = await api.auth.me();
+    setUser(me);
+    const dest = me.role === "admin" ? "/admin" : me.role === "funder" ? "/funder" : "/clipper";
+    router.push(dest);
+  };
+
+  const signupClipper = async (body: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    bankCode: string;
+    bankName: string;
+    accountNumber: string;
+  }) => {
+    const tokens = await api.auth.signupClipper(body);
+    await completeSignup(tokens);
+  };
+
+  const signupFunder = async (body: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    business: string;
+  }) => {
+    const tokens = await api.auth.signupFunder(body);
+    await completeSignup(tokens);
+  };
+
   const logout = async () => {
     await api.auth.logout().catch(() => undefined);
     setTokens(null);
@@ -72,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, signupClipper, signupFunder, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

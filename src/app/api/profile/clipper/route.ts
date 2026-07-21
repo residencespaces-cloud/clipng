@@ -6,8 +6,8 @@ export async function PATCH(request: Request) {
   if (auth.error) return auth.error;
   try {
     const body = await request.json();
-    if (!body.bankName?.trim() || !body.accountNumber?.trim()) {
-      return jsonError("Bank name and account number are required");
+    if (!body.bankCode?.trim() || !body.bankName?.trim() || !body.accountNumber?.trim()) {
+      return jsonError("Select your bank and enter account number");
     }
     return ok(await updateClipperProfile(auth.user.id, body));
   } catch (e) {

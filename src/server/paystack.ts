@@ -22,10 +22,35 @@ async function paystackFetch<T>(path: string, init: RequestInit = {}): Promise<T
   return json.data;
 }
 
-export type PaystackBank = { name: string; code: string };
+export type PaystackBank = { name: string; code: string; slug?: string };
+
+const DEV_BANKS: PaystackBank[] = [
+  { name: "Guaranty Trust Bank", code: "058" },
+  { name: "Access Bank", code: "044" },
+  { name: "Zenith Bank", code: "057" },
+  { name: "First Bank of Nigeria", code: "011" },
+  { name: "United Bank For Africa", code: "033" },
+];
 
 export async function listBanks(): Promise<PaystackBank[]> {
-  return paystackFetch<PaystackBank[]>("/bank?country=nigeria");
+  if (!process.env.PAYSTACK_SECRET_KEY) {
+    return DEV_BANKS;
+  }
+  const banks = await paystackFetch<PaystackBank[]>("/bank?country=nigeria");
+  return banks.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function resolveAccountNumber(accountNumber: string, bankCode: string) {
+  const acct = accountNumber.replace(/\D/g, "");
+  if (acct.length !== 10) {
+    throw new Error("Enter a valid 10-digit account number.");
+  }
+  if (!process.env.PAYSTACK_SECRET_KEY) {
+    return { account_number: acct, account_name: "Test Account (dev mode)" };
+  }
+  return paystackFetch<{ account_number: string; account_name: string }>(
+    `/bank/resolve?account_number=${encodeURIComponent(acct)}&bank_code=${encodeURIComponent(bankCode)}`,
+  );
 }
 
 export async function findBankCode(bankName: string): Promise<string> {

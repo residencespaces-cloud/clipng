@@ -30,11 +30,18 @@ export function RouteTransition({ children }: { children: ReactNode }) {
   const shownAt = useRef(0);
   const prevRouteKey = useRef(routeKey);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+  const safetyTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const startLoading = useCallback(() => {
     shownAt.current = Date.now();
     loadingRef.current = true;
     setLoading(true);
+    if (safetyTimer.current) clearTimeout(safetyTimer.current);
+    safetyTimer.current = setTimeout(() => {
+      if (!loadingRef.current) return;
+      loadingRef.current = false;
+      setLoading(false);
+    }, 15000);
   }, []);
 
   useEffect(() => onNavigationStart(startLoading), [startLoading]);
@@ -69,12 +76,19 @@ export function RouteTransition({ children }: { children: ReactNode }) {
     hideTimer.current = setTimeout(() => {
       loadingRef.current = false;
       setLoading(false);
+      if (safetyTimer.current) clearTimeout(safetyTimer.current);
     }, remaining);
 
     return () => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
     };
   }, [routeKey]);
+
+  useEffect(() => {
+    return () => {
+      if (safetyTimer.current) clearTimeout(safetyTimer.current);
+    };
+  }, []);
 
   return (
     <>
