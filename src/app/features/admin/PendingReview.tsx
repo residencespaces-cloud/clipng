@@ -4,14 +4,26 @@ import type { PendingClip } from "@/app/types";
 
 export function PendingReview({
   clips,
+  actionId,
+  rejectingId,
+  rejectReason,
   onApprove,
   onReject,
+  onStartReject,
+  onCancelReject,
+  onRejectReasonChange,
   onApproveAll,
   onCodeVerifiedChange,
 }: {
   clips: PendingClip[];
+  actionId: string | null;
+  rejectingId: string | null;
+  rejectReason: string;
   onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onReject: (id: string, reason?: string) => void;
+  onStartReject: (id: string) => void;
+  onCancelReject: () => void;
+  onRejectReasonChange: (reason: string) => void;
   onApproveAll: () => void;
   onCodeVerifiedChange: (id: string, verified: boolean) => void;
 }) {
@@ -29,7 +41,7 @@ export function PendingReview({
         {clips.length > 0 && (
           <button
             onClick={onApproveAll}
-            disabled={verifiedCount === 0}
+            disabled={verifiedCount === 0 || !!actionId}
             className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary hover:text-primary-foreground transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Approve Verified ({verifiedCount})
@@ -67,9 +79,7 @@ export function PendingReview({
                         <input
                           type="checkbox"
                           checked={c.codeVerified}
-                          onChange={(e) =>
-                            onCodeVerifiedChange(c.id, e.target.checked)
-                          }
+                          onChange={(e) => onCodeVerifiedChange(c.id, e.target.checked)}
                           className="accent-primary"
                         />
                         Code visible in caption
@@ -81,26 +91,45 @@ export function PendingReview({
                       </a>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => onApprove(c.id)}
-                          disabled={!c.codeVerified}
-                          title={
-                            c.codeVerified
-                              ? "Approve post submission"
-                              : "Verify the caption code first"
-                          }
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary hover:text-primary-foreground transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary/10 disabled:hover:text-primary"
-                        >
-                          <CheckCircle size={10} /> Approve
-                        </button>
-                        <button
-                          onClick={() => onReject(c.id)}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-red-500/10 text-red-400 border border-red-500/20 rounded hover:bg-red-500 hover:text-white transition-all whitespace-nowrap"
-                        >
-                          <XCircle size={10} /> Reject
-                        </button>
-                      </div>
+                      {rejectingId === c.id ? (
+                        <div className="space-y-2 min-w-[200px]">
+                          <input
+                            value={rejectReason}
+                            onChange={(e) => onRejectReasonChange(e.target.value)}
+                            placeholder="Rejection reason"
+                            className="w-full bg-input-background border border-border rounded px-2 py-1 text-xs"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => onReject(c.id, rejectReason || undefined)}
+                              disabled={actionId === c.id}
+                              className="text-xs text-red-400 hover:underline disabled:opacity-50"
+                            >
+                              Confirm reject
+                            </button>
+                            <button onClick={onCancelReject} className="text-xs text-muted-foreground hover:underline">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => onApprove(c.id)}
+                            disabled={!c.codeVerified || actionId === c.id}
+                            className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary hover:text-primary-foreground transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <CheckCircle size={10} /> {actionId === c.id ? "…" : "Approve"}
+                          </button>
+                          <button
+                            onClick={() => onStartReject(c.id)}
+                            disabled={actionId === c.id}
+                            className="flex items-center gap-1 px-2.5 py-1 text-xs bg-red-500/10 text-red-400 border border-red-500/20 rounded hover:bg-red-500 hover:text-white transition-all whitespace-nowrap disabled:opacity-40"
+                          >
+                            <XCircle size={10} /> Reject
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

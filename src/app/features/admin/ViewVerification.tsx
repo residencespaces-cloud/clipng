@@ -4,10 +4,12 @@ import type { AwaitingViewsClip } from "@/app/types";
 
 export function ViewVerification({
   clips,
+  actionId,
   onConfirmViews,
   onViewCountChange,
 }: {
   clips: AwaitingViewsClip[];
+  actionId: string | null;
   onConfirmViews: (id: string) => void;
   onViewCountChange: (id: string, value: string) => void;
 }) {
@@ -65,11 +67,11 @@ export function ViewVerification({
                       <td className="px-4 py-3">
                         <button
                           onClick={() => onConfirmViews(c.id)}
-                          disabled={views <= 0}
+                          disabled={views <= 0 || actionId === c.id}
                           title={views > 0 ? "Confirm views and send to payout queue" : "Enter view count first"}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary hover:text-primary-foreground transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary/10 disabled:hover:text-primary"
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary hover:text-primary-foreground transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          <CheckCircle size={10} /> Confirm Views
+                          <CheckCircle size={10} /> {actionId === c.id ? "…" : "Confirm Views"}
                         </button>
                       </td>
                     </tr>

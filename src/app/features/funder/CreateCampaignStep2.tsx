@@ -66,7 +66,11 @@ export function CreateCampaignStep2({
       </div>
       <div className="flex gap-3">
         <button onClick={() => setCreateStep(1)} className="flex-1 py-2.5 border border-border text-sm rounded hover:border-primary/30 transition-colors">← Back</button>
-        <button onClick={() => setCreateStep(3)} className="flex-1 py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all">
+        <button
+          onClick={() => cpmNum > 0 && budgetNum > 0 && setCreateStep(3)}
+          disabled={cpmNum <= 0 || budgetNum <= 0}
+          className="flex-1 py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all disabled:opacity-40"
+        >
           Review & Pay →
         </button>
       </div>

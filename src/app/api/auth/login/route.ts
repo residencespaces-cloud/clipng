@@ -1,7 +1,12 @@
 import { login, ok } from "@/server/services/auth.service";
 import { jsonError } from "@/server/auth";
+import { rateLimit } from "@/server/rate-limit";
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for") ?? "unknown";
+  if (!rateLimit(`login:${ip}`, 10, 60_000)) {
+    return jsonError("Too many login attempts. Try again in a minute.", 429);
+  }
   try {
     const body = await request.json();
     if (!body.email || !body.password) {

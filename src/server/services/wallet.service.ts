@@ -1,6 +1,8 @@
 import { WalletLedgerType, Prisma } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { koboToNaira, nairaToKobo } from "@/server/money";
+import { initializeTransaction } from "@/server/paystack";
+import { notifyUser } from "@/server/services/notifications.service";
 
 export async function getWalletForFunder(userId: string) {
   const profile = await prisma.funderProfile.findUnique({
@@ -20,6 +22,24 @@ export async function getBalance(userId: string) {
   };
 }
 
+function mapLedgerType(type: WalletLedgerType): "top_up" | "campaign_escrow" | "escrow_release" | "refund" | "adjustment" {
+  switch (type) {
+    case WalletLedgerType.top_up:
+      return "top_up";
+    case WalletLedgerType.campaign_escrow:
+      return "campaign_escrow";
+    case WalletLedgerType.escrow_release:
+      return "escrow_release";
+    case WalletLedgerType.refund:
+      return "refund";
+    case WalletLedgerType.payout_debit:
+    case WalletLedgerType.adjustment:
+      return "adjustment";
+    default:
+      return "adjustment";
+  }
+}
+
 export async function getTransactions(userId: string) {
   const wallet = await getWalletForFunder(userId);
   const entries = await prisma.walletLedgerEntry.findMany({
@@ -30,24 +50,48 @@ export async function getTransactions(userId: string) {
   return entries.map((e) => ({
     id: e.id,
     date: e.createdAt.toISOString().slice(0, 10),
-    type: e.type === WalletLedgerType.top_up ? "top_up" : "campaign_escrow",
+    type: mapLedgerType(e.type),
     description: e.description,
     amount: koboToNaira(e.amountKobo),
     balanceAfter: koboToNaira(e.balanceAfterKobo),
   }));
 }
 
-export async function initiateTopUp(userId: string, amountNaira: number) {
+export async function initiateTopUp(userId: string, amountNaira: number, callbackUrl?: string) {
   if (amountNaira <= 0) throw new Error("Amount must be positive");
   const wallet = await getWalletForFunder(userId);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("User not found");
+
   const reference = `topup_${wallet.id}_${Date.now()}`;
+  const amountKobo = nairaToKobo(amountNaira);
+
+  if (!process.env.PAYSTACK_SECRET_KEY) {
+    return {
+      reference,
+      amount: amountNaira,
+      amountKobo,
+      authorizationUrl: callbackUrl ?? "/funder?topup=success",
+      publicKey: process.env.PAYSTACK_PUBLIC_KEY,
+      message: "Paystack not configured — set PAYSTACK_SECRET_KEY for live payments.",
+    };
+  }
+
+  const data = await initializeTransaction({
+    email: user.email,
+    amountKobo,
+    reference,
+    callbackUrl,
+    metadata: { walletId: wallet.id, userId },
+  });
+
   return {
     reference,
     amount: amountNaira,
-    amountKobo: nairaToKobo(amountNaira),
-    authorizationUrl: `https://checkout.paystack.com/demo?ref=${reference}`,
+    amountKobo,
+    authorizationUrl: data.authorization_url,
     publicKey: process.env.PAYSTACK_PUBLIC_KEY,
-    message: "Use Paystack checkout. Webhook will credit wallet on success.",
+    message: "Redirect to Paystack checkout. Wallet credits on successful payment.",
   };
 }
 
@@ -62,8 +106,11 @@ export async function creditTopUp(
   const walletId = (metadata?.walletId as string) ?? null;
   if (!walletId) throw new Error("Missing walletId in webhook metadata");
 
-  return prisma.$transaction(async (tx) => {
-    const wallet = await tx.wallet.findUniqueOrThrow({ where: { id: walletId } });
+  const entry = await prisma.$transaction(async (tx) => {
+    const wallet = await tx.wallet.findUniqueOrThrow({
+      where: { id: walletId },
+      include: { funderProfile: true },
+    });
     const newBalance = wallet.balanceKobo + BigInt(amountKobo);
     await tx.wallet.update({
       where: { id: wallet.id },
@@ -81,6 +128,26 @@ export async function creditTopUp(
       },
     });
   });
+
+  const wallet = await prisma.wallet.findUnique({
+    where: { id: walletId },
+    include: { funderProfile: true },
+  });
+  if (wallet?.funderProfile) {
+    const funder = await prisma.user.findUnique({
+      where: { id: wallet.funderProfile.userId },
+    });
+    if (funder) {
+      await notifyUser(
+        funder.id,
+        "Wallet topped up",
+        `Your wallet was credited with ₦${koboToNaira(amountKobo).toLocaleString()}.`,
+        { reference },
+      );
+    }
+  }
+
+  return entry;
 }
 
 export async function reserveEscrowForCampaign(

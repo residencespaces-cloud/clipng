@@ -1,8 +1,25 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { hashToken, issueTokens } from "@/server/auth";
+import { createTransferRecipient, findBankCode } from "@/server/paystack";
+import { isValidEmail, isValidPassword, isValidPhone } from "@/server/validation";
+import { notifyUser } from "@/server/services/notifications.service";
+
+async function createClipperRecipient(name: string, bankName: string, accountNumber: string) {
+  if (!process.env.PAYSTACK_SECRET_KEY) {
+    return `dev_recipient_${accountNumber}`;
+  }
+  const bankCode = await findBankCode(bankName);
+  const recipient = await createTransferRecipient({
+    name,
+    accountNumber,
+    bankCode,
+  });
+  return recipient.recipient_code;
+}
 
 export async function signupClipper(body: {
   name: string;
@@ -12,23 +29,49 @@ export async function signupClipper(body: {
   bankName: string;
   accountNumber: string;
 }) {
+  if (!isValidEmail(body.email)) throw new Error("Enter a valid email address.");
+  if (!isValidPassword(body.password)) throw new Error("Password must be at least 8 characters.");
+  if (!isValidPhone(body.phone)) throw new Error("Enter a valid phone number.");
+
+  let recipientCode: string | undefined;
+  try {
+    recipientCode = await createClipperRecipient(body.name, body.bankName, body.accountNumber);
+  } catch (e) {
+    throw new Error(
+      e instanceof Error ? e.message : "Could not verify bank details with Paystack.",
+    );
+  }
+
   const passwordHash = await bcrypt.hash(body.password, 12);
-  const user = await prisma.user.create({
-    data: {
-      email: body.email.toLowerCase(),
-      passwordHash,
-      role: UserRole.clipper,
-      clipperProfile: {
-        create: {
-          displayName: body.name,
-          phone: body.phone,
-          bankName: body.bankName,
-          accountNumber: body.accountNumber,
+  try {
+    const user = await prisma.user.create({
+      data: {
+        email: body.email.toLowerCase(),
+        passwordHash,
+        role: UserRole.clipper,
+        clipperProfile: {
+          create: {
+            displayName: body.name,
+            phone: body.phone,
+            bankName: body.bankName,
+            accountNumber: body.accountNumber,
+            paystackRecipientCode: recipientCode,
+          },
         },
       },
-    },
-  });
-  return issueTokens(user);
+    });
+    await notifyUser(
+      user.id,
+      "Welcome to ClipNG",
+      `Hi ${body.name}, your clipper account is ready. Browse live campaigns and start earning.`,
+    );
+    return issueTokens(user);
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      throw new Error("An account with this email already exists.");
+    }
+    throw e;
+  }
 }
 
 export async function signupFunder(body: {
@@ -38,22 +81,81 @@ export async function signupFunder(body: {
   password: string;
   business: string;
 }) {
+  if (!isValidEmail(body.email)) throw new Error("Enter a valid email address.");
+  if (!isValidPassword(body.password)) throw new Error("Password must be at least 8 characters.");
+  if (!isValidPhone(body.phone)) throw new Error("Enter a valid phone number.");
+
   const passwordHash = await bcrypt.hash(body.password, 12);
-  const user = await prisma.user.create({
-    data: {
-      email: body.email.toLowerCase(),
-      passwordHash,
-      role: UserRole.funder,
-      funderProfile: {
-        create: {
-          businessName: body.business,
-          phone: body.phone,
-          wallet: { create: {} },
+  try {
+    const user = await prisma.user.create({
+      data: {
+        email: body.email.toLowerCase(),
+        passwordHash,
+        role: UserRole.funder,
+        funderProfile: {
+          create: {
+            businessName: body.business,
+            phone: body.phone,
+            wallet: { create: {} },
+          },
         },
       },
+    });
+    await notifyUser(
+      user.id,
+      "Welcome to ClipNG",
+      `Hi ${body.business}, your funder account is ready. Fund your wallet and launch your first campaign.`,
+    );
+    return issueTokens(user);
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      throw new Error("An account with this email already exists.");
+    }
+    throw e;
+  }
+}
+
+export async function updateClipperProfile(
+  userId: string,
+  body: { bankName: string; accountNumber: string },
+) {
+  const profile = await prisma.clipperProfile.findUnique({ where: { userId } });
+  if (!profile) throw new Error("Clipper profile not found");
+
+  const recipientCode = await createClipperRecipient(
+    profile.displayName,
+    body.bankName,
+    body.accountNumber,
+  );
+
+  await prisma.clipperProfile.update({
+    where: { userId },
+    data: {
+      bankName: body.bankName,
+      accountNumber: body.accountNumber,
+      paystackRecipientCode: recipientCode,
     },
   });
-  return issueTokens(user);
+
+  return { success: true };
+}
+
+export async function updateFunderProfile(
+  userId: string,
+  body: { businessName: string; phone?: string },
+) {
+  const profile = await prisma.funderProfile.findUnique({ where: { userId } });
+  if (!profile) throw new Error("Funder profile not found");
+
+  await prisma.funderProfile.update({
+    where: { userId },
+    data: {
+      businessName: body.businessName,
+      phone: body.phone ?? profile.phone,
+    },
+  });
+
+  return { success: true };
 }
 
 export async function login(email: string, password: string) {
@@ -75,6 +177,12 @@ export async function login(email: string, password: string) {
     throw Object.assign(new Error("This account has been suspended. Contact support."), {
       status: 403,
       code: "ACCOUNT_SUSPENDED",
+    });
+  }
+  if (user.status === "pending_verification") {
+    throw Object.assign(new Error("Verify your email before signing in."), {
+      status: 403,
+      code: "EMAIL_NOT_VERIFIED",
     });
   }
   return issueTokens(user);
@@ -111,6 +219,10 @@ export async function getMe(userId: string) {
       user.funderProfile?.businessName ??
       user.email,
     status: user.status,
+    bankName: user.clipperProfile?.bankName,
+    accountNumber: user.clipperProfile?.accountNumber,
+    businessName: user.funderProfile?.businessName,
+    phone: user.clipperProfile?.phone ?? user.funderProfile?.phone,
   };
 }
 

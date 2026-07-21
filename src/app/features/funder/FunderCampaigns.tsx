@@ -1,18 +1,36 @@
 import { BudgetBar } from "@/app/components/shared/BudgetBar";
 import { PlatformBadge } from "@/app/components/shared/PlatformBadge";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
-import { CAMPAIGNS } from "@/app/data/mock-data";
 import { fmt } from "@/app/lib/format";
+import type { Campaign } from "@/app/types";
 
-export function FunderCampaigns() {
+export function FunderCampaigns({ campaigns, loading }: { campaigns: Campaign[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2].map((i) => (
+          <div key={i} className="bg-card border border-border rounded-xl p-5 h-48 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (campaigns.length === 0) {
+    return (
+      <div className="bg-card border border-border rounded-xl p-12 text-center text-muted-foreground">
+        <p className="text-sm">No campaigns yet. Create your first campaign to get started.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {CAMPAIGNS.map((c) => (
+      {campaigns.map((c) => (
         <div key={c.id} className="bg-card border border-border rounded-xl p-5 space-y-4">
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="font-semibold">{c.name}</p>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">Ends {c.end}</p>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">{c.end ? `Ends ${c.end}` : "No end date"}</p>
             </div>
             <StatusBadge status={c.status} />
           </div>

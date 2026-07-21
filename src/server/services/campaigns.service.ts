@@ -1,6 +1,9 @@
 import { CampaignStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { koboToNaira, nairaToKobo, generateVerificationCode } from "@/server/money";
+import { normalizeStatus } from "@/server/status";
+import { isValidUrl } from "@/server/validation";
+import { notifyUser } from "@/server/services/notifications.service";
 import { reserveEscrowForCampaign } from "./wallet.service";
 
 function mapCampaign(c: {
@@ -29,7 +32,7 @@ function mapCampaign(c: {
     views: c.totalViews,
     clips: c.clipCount,
     platforms: c.platforms,
-    status: c.status === CampaignStatus.active ? "Active" : c.status,
+    status: normalizeStatus(c.status),
     end: c.endDate?.toISOString().slice(0, 10) ?? "",
     description: c.description,
     asset: c.assetUrl ?? "",
@@ -55,6 +58,17 @@ export async function createCampaign(
 ) {
   const profile = await prisma.funderProfile.findUnique({ where: { userId } });
   if (!profile) throw new Error("Funder profile required");
+
+  if (!dto.name?.trim()) throw new Error("Campaign name is required");
+  if (!dto.description?.trim()) throw new Error("Campaign description is required");
+  if (!dto.platforms?.length) throw new Error("Select at least one platform");
+  if (dto.cpm <= 0) throw new Error("CPM must be greater than zero");
+  if (dto.budget <= 0) throw new Error("Budget must be greater than zero");
+  if (dto.assetUrl && !isValidUrl(dto.assetUrl)) throw new Error("Asset URL is invalid");
+  if (dto.imageUrl && !isValidUrl(dto.imageUrl)) throw new Error("Image URL is invalid");
+  if (dto.start && dto.end && new Date(dto.end) <= new Date(dto.start)) {
+    throw new Error("End date must be after start date");
+  }
 
   const budgetKobo = nairaToKobo(dto.budget);
   const cpmKobo = nairaToKobo(dto.cpm);
@@ -96,6 +110,13 @@ export async function createCampaign(
       metadata: { budget: dto.budget } as Prisma.InputJsonValue,
     },
   });
+
+  await notifyUser(
+    userId,
+    "Campaign launched",
+    `Your campaign "${active.name}" is now live with a budget of ₦${dto.budget.toLocaleString()}.`,
+    { campaignId: active.id },
+  );
 
   return mapCampaign(active);
 }

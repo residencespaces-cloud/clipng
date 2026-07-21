@@ -16,10 +16,13 @@ import { clipperCpm, fmt } from "@/app/lib/format";
 
 export function ClipperCampaigns({
   campaigns,
+  loading,
   joinedCampaign,
   clipUrl,
   clipPlatform,
   submitted,
+  joining,
+  submitting,
   verificationCode,
   codeConfirmed,
   submissionError,
@@ -31,10 +34,13 @@ export function ClipperCampaigns({
   onSubmit,
 }: {
   campaigns: Campaign[];
+  loading?: boolean;
   joinedCampaign: string | null;
   clipUrl: string;
   clipPlatform: string;
   submitted: boolean;
+  joining?: boolean;
+  submitting?: boolean;
   verificationCode: string;
   codeConfirmed: boolean;
   submissionError: string;
@@ -45,17 +51,39 @@ export function ClipperCampaigns({
   onCodeConfirmed: (v: boolean) => void;
   onSubmit: () => void;
 }) {
+  if (loading) {
+    return (
+      <div className="grid md:grid-cols-2 gap-4">
+        {[1, 2].map((i) => (
+          <div key={i} className="bg-card border border-border rounded-xl p-5 h-64 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (campaigns.length === 0) {
+    return (
+      <div className="bg-card border border-border rounded-xl p-12 text-center text-muted-foreground">
+        <p className="text-sm">No live campaigns right now. Check back soon.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid md:grid-cols-2 gap-4">
       {campaigns.map((c) => (
         <div key={c.id} className="bg-card border border-border rounded-xl p-5 space-y-4">
           <div className="relative aspect-[16/7] rounded-lg overflow-hidden bg-secondary group">
-            <img
-              src={c.image}
-              alt={c.name}
-              loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
+            {c.image ? (
+              <img
+                src={c.image}
+                alt={c.name}
+                loading="lazy"
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No image</div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             <span className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm border border-white/15 text-white flex items-center justify-center">
               <Play size={13} fill="currentColor" />
@@ -96,9 +124,11 @@ export function ClipperCampaigns({
                   <X size={14} />
                 </button>
               </div>
-              <a href={c.asset} className="flex items-center gap-2 text-xs text-primary hover:underline">
-                <Upload size={12} /> Download source asset
+              {c.asset && (
+              <a href={c.asset} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-primary hover:underline">
+                <Upload size={12} /> Open source asset
               </a>
+              )}
               <div className="rounded-lg border border-primary/25 bg-primary/10 p-3">
                 <div className="flex items-start gap-2">
                   <ShieldCheck size={16} className="text-primary shrink-0 mt-0.5" />
@@ -179,9 +209,10 @@ export function ClipperCampaigns({
                 ) : (
                   <button
                     onClick={onSubmit}
-                    className="w-full py-2 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all"
+                    disabled={submitting}
+                    className="w-full py-2 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all disabled:opacity-50"
                   >
-                    Submit Clip
+                    {submitting ? "Submitting…" : "Submit Clip"}
                   </button>
                 )}
               </div>
@@ -189,9 +220,10 @@ export function ClipperCampaigns({
           ) : (
             <button
               onClick={() => onJoin(c.id)}
-              className="w-full py-2.5 bg-primary/10 text-primary text-sm font-bold rounded hover:bg-primary hover:text-primary-foreground transition-all border border-primary/20"
+              disabled={joining}
+              className="w-full py-2.5 bg-primary/10 text-primary text-sm font-bold rounded hover:bg-primary hover:text-primary-foreground transition-all border border-primary/20 disabled:opacity-50"
             >
-              Join Campaign
+              {joining ? "Joining…" : "Join Campaign"}
             </button>
           )}
         </div>

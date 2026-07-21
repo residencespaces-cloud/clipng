@@ -4,7 +4,16 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { useRouter } from "next/navigation";
 import { api, getTokens, setTokens } from "@/app/lib/api/client";
 
-type AuthUser = { id: string; email: string; role: string; name: string };
+type AuthUser = {
+  id: string;
+  email: string;
+  role: string;
+  name: string;
+  bankName?: string;
+  accountNumber?: string;
+  businessName?: string;
+  phone?: string;
+};
 
 type AuthContextValue = {
   user: AuthUser | null;

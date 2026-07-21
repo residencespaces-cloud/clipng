@@ -7,9 +7,11 @@ import { prisma } from "./prisma";
 export type AuthUser = { id: string; email: string; role: UserRole };
 
 function accessSecret() {
-  return new TextEncoder().encode(
-    process.env.JWT_ACCESS_SECRET ?? "dev-access-secret-change-me-32chars",
-  );
+  const secret = process.env.JWT_ACCESS_SECRET;
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("JWT_ACCESS_SECRET must be set in production");
+  }
+  return new TextEncoder().encode(secret ?? "dev-access-secret-change-me-32chars");
 }
 
 export function hashToken(token: string) {

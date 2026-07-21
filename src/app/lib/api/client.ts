@@ -77,6 +77,12 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return res.json() as Promise<T>;
 }
 
+export async function publicFetch<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (!res.ok) throw new Error("Request failed");
+  return res.json() as Promise<T>;
+}
+
 export const api = {
   auth: {
     login: (body: { email: string; password: string }) =>
@@ -85,7 +91,16 @@ export const api = {
       apiFetch<ApiTokens>('/auth/signup/clipper', { method: 'POST', body: JSON.stringify(body) }),
     signupFunder: (body: Record<string, string>) =>
       apiFetch<ApiTokens>('/auth/signup/funder', { method: 'POST', body: JSON.stringify(body) }),
-    me: () => apiFetch<{ id: string; email: string; role: string; name: string }>('/auth/me'),
+    me: () => apiFetch<{
+      id: string;
+      email: string;
+      role: string;
+      name: string;
+      bankName?: string;
+      accountNumber?: string;
+      businessName?: string;
+      phone?: string;
+    }>('/auth/me'),
     logout: () => {
       const tokens = getTokens();
       if (tokens?.refreshToken) {
@@ -97,7 +112,14 @@ export const api = {
       return Promise.resolve({ success: true });
     },
   },
+  profile: {
+    updateClipper: (body: { bankName: string; accountNumber: string }) =>
+      apiFetch('/profile/clipper', { method: 'PATCH', body: JSON.stringify(body) }),
+    updateFunder: (body: { businessName: string; phone?: string }) =>
+      apiFetch('/profile/funder', { method: 'PATCH', body: JSON.stringify(body) }),
+  },
   campaigns: {
+    public: () => publicFetch<import('@/app/types').Campaign[]>('/campaigns/public'),
     live: () => apiFetch<import('@/app/types').Campaign[]>('/campaigns/live'),
     my: () => apiFetch<import('@/app/types').Campaign[]>('/campaigns/my'),
     create: (body: Record<string, unknown>) =>
@@ -118,8 +140,7 @@ export const api = {
     create: (body: Record<string, unknown>) =>
       apiFetch('/submissions', { method: 'POST', body: JSON.stringify(body) }),
     mine: () => apiFetch<import('@/app/types').MyClip[]>('/submissions/me'),
-    earnings: () =>
-      apiFetch<{ totalEarned: number; pendingThisWeek: number; paidOut: number }>('/earnings/me'),
+    earnings: () => apiFetch<import('@/app/types').EarningsSummary>('/earnings/me'),
   },
   admin: {
     pending: () => apiFetch('/admin/submissions/pending'),
@@ -142,8 +163,8 @@ export const api = {
       }),
     triggerPayout: (id: string) =>
       apiFetch(`/admin/payouts/${id}/trigger`, { method: 'POST' }),
-    campaigns: () => apiFetch('/admin/campaigns'),
+    campaigns: () => apiFetch<import('@/app/types').Campaign[]>('/admin/campaigns'),
     payouts: () => apiFetch<import('@/app/types').Payout[]>('/admin/payouts'),
-    auditLogs: () => apiFetch('/admin/audit-logs'),
+    auditLogs: () => apiFetch<import('@/app/types').AuditLog[]>('/admin/audit-logs'),
   },
 };

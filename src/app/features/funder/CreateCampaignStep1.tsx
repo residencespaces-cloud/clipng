@@ -1,22 +1,23 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Film, Upload } from "lucide-react";
-import type { CreateCampaignForm, CreateStep, SourceType } from "@/app/types";
+import type { CreateCampaignForm, CreateStep } from "@/app/types";
 
 export function CreateCampaignStep1({
   form,
-  assetFile,
   setForm,
-  setAssetFile,
   togglePlatform,
   setCreateStep,
 }: {
   form: CreateCampaignForm;
-  assetFile: File | null;
   setForm: Dispatch<SetStateAction<CreateCampaignForm>>;
-  setAssetFile: (file: File | null) => void;
   togglePlatform: (p: string) => void;
   setCreateStep: (step: CreateStep) => void;
 }) {
+  const canContinue =
+    form.name.trim() &&
+    form.description.trim() &&
+    form.assetUrl.trim() &&
+    form.platforms.length > 0;
+
   return (
     <>
       <h3 className="font-semibold">Campaign Details</h3>
@@ -35,8 +36,8 @@ export function CreateCampaignStep1({
           <label className="text-xs text-muted-foreground block mb-2">Source Type</label>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { key: "video" as SourceType, label: "Single Video", description: "Music video, skit or ad" },
-              { key: "vod" as SourceType, label: "Livestream VOD", description: "Long-form stream recording" },
+              { key: "video" as const, label: "Single Video", description: "Music video, skit or ad" },
+              { key: "vod" as const, label: "Livestream VOD", description: "Long-form stream recording" },
             ].map((source) => (
               <button
                 key={source.key}
@@ -57,44 +58,25 @@ export function CreateCampaignStep1({
           </div>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground block mb-1.5">Source Video / Asset</label>
-          <label className="flex flex-col items-center justify-center min-h-28 border border-dashed border-border rounded-lg bg-secondary/30 hover:border-primary/40 hover:bg-primary/5 transition-colors cursor-pointer">
-            <input
-              type="file"
-              accept="video/*"
-              className="sr-only"
-              onChange={(e) => setAssetFile(e.target.files?.[0] ?? null)}
-            />
-            {assetFile ? (
-              <div className="flex items-center gap-3 px-4 text-center">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <Film size={17} />
-                </div>
-                <div className="text-left min-w-0">
-                  <p className="text-sm font-medium truncate">{assetFile.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(assetFile.size / (1024 * 1024)).toFixed(1)} MB · Click to replace
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <Upload size={20} className="text-primary mb-2" />
-                <p className="text-sm font-medium">Upload source video</p>
-                <p className="text-xs text-muted-foreground mt-1">MP4, MOV or WebM</p>
-              </>
-            )}
-          </label>
-          <div className="flex items-center gap-3 my-3">
-            <div className="h-px bg-border flex-1" />
-            <span className="text-[10px] text-muted-foreground font-mono uppercase">or use a link</span>
-            <div className="h-px bg-border flex-1" />
-          </div>
+          <label className="text-xs text-muted-foreground block mb-1.5">Source Video URL</label>
           <input
             type="url"
             placeholder={form.sourceType === "vod" ? "YouTube or Twitch VOD URL" : "YouTube, Drive or direct video URL"}
             value={form.assetUrl}
             onChange={(e) => setForm((f) => ({ ...f, assetUrl: e.target.value }))}
+            className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground block mb-1.5">
+            Campaign Thumbnail URL
+            <span className="text-muted-foreground/60 ml-1">(optional)</span>
+          </label>
+          <input
+            type="url"
+            placeholder="https://example.com/image.jpg"
+            value={form.imageUrl}
+            onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
             className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
           />
         </div>
@@ -114,11 +96,6 @@ export function CreateCampaignStep1({
             rows={3}
             className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground resize-none"
           />
-          {form.sourceType === "vod" && (
-            <p className="text-xs text-accent mt-1.5">
-              Timestamps help clippers find standout moments in long streams faster.
-            </p>
-          )}
         </div>
         <div>
           <label className="text-xs text-muted-foreground block mb-1.5">Brief / Rules for Clippers</label>
@@ -136,6 +113,7 @@ export function CreateCampaignStep1({
             {["TikTok", "Instagram", "YouTube"].map((p) => (
               <button
                 key={p}
+                type="button"
                 onClick={() => togglePlatform(p)}
                 className={`px-4 py-1.5 text-xs rounded border transition-colors ${form.platforms.includes(p) ? "bg-primary/15 border-primary/40 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}
               >
@@ -155,7 +133,11 @@ export function CreateCampaignStep1({
           </div>
         </div>
       </div>
-      <button onClick={() => setCreateStep(2)} className="w-full py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all">
+      <button
+        onClick={() => setCreateStep(2)}
+        disabled={!canContinue}
+        className="w-full py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all disabled:opacity-40"
+      >
         Continue to Budget →
       </button>
     </>

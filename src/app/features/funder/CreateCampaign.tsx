@@ -10,8 +10,6 @@ import { CreateCampaignStep3 } from "./CreateCampaignStep3";
 export function CreateCampaign({
   form,
   setForm,
-  assetFile,
-  setAssetFile,
   createStep,
   setCreateStep,
   launchSuccess,
@@ -21,14 +19,13 @@ export function CreateCampaign({
   budgetNum,
   viewCeiling,
   walletBalance,
+  launching,
   onLaunch,
   onViewCampaigns,
   onFundWallet,
 }: {
   form: CreateCampaignForm;
   setForm: Dispatch<SetStateAction<CreateCampaignForm>>;
-  assetFile: File | null;
-  setAssetFile: (file: File | null) => void;
   createStep: CreateStep;
   setCreateStep: (step: CreateStep) => void;
   launchSuccess: boolean;
@@ -38,8 +35,9 @@ export function CreateCampaign({
   budgetNum: number;
   viewCeiling: number;
   walletBalance: number;
+  launching?: boolean;
   onLaunch: () => void;
-  onViewCampaigns: (tab: FunderTab) => void;
+  onViewCampaigns: () => void;
   onFundWallet: (tab: FunderTab) => void;
 }) {
   return (
@@ -66,7 +64,7 @@ export function CreateCampaign({
             Budget debited from your wallet and held in escrow. Your campaign is now open to all clippers.
           </p>
           <button
-            onClick={() => { onViewCampaigns("campaigns"); setLaunchSuccess(false); setCreateStep(1); }}
+            onClick={onViewCampaigns}
             className="px-6 py-2 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all"
           >
             View Campaigns
@@ -77,9 +75,7 @@ export function CreateCampaign({
           {createStep === 1 && (
             <CreateCampaignStep1
               form={form}
-              assetFile={assetFile}
               setForm={setForm}
-              setAssetFile={setAssetFile}
               togglePlatform={togglePlatform}
               setCreateStep={setCreateStep}
             />
@@ -97,11 +93,11 @@ export function CreateCampaign({
           {createStep === 3 && (
             <CreateCampaignStep3
               form={form}
-              assetFile={assetFile}
               cpmNum={cpmNum}
               budgetNum={budgetNum}
               viewCeiling={viewCeiling}
               walletBalance={walletBalance}
+              launching={launching}
               setCreateStep={setCreateStep}
               onLaunch={onLaunch}
               onFundWallet={onFundWallet}

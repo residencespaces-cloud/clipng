@@ -2,29 +2,32 @@ import { AlertCircle } from "lucide-react";
 import { clipperCpm, fmt } from "@/app/lib/format";
 import type { CreateCampaignForm, CreateStep, FunderTab } from "@/app/types";
 
+const FEE_PERCENT = Number(process.env.NEXT_PUBLIC_PLATFORM_FEE_PERCENT ?? 20);
+
 export function CreateCampaignStep3({
   form,
-  assetFile,
   cpmNum,
   budgetNum,
   viewCeiling,
   walletBalance,
+  launching,
   setCreateStep,
   onLaunch,
   onFundWallet,
 }: {
   form: CreateCampaignForm;
-  assetFile: File | null;
   cpmNum: number;
   budgetNum: number;
   viewCeiling: number;
   walletBalance: number;
+  launching?: boolean;
   setCreateStep: (step: CreateStep) => void;
   onLaunch: () => void;
   onFundWallet: (tab: FunderTab) => void;
 }) {
   const canLaunch = walletBalance >= budgetNum && budgetNum > 0;
   const shortfall = budgetNum - walletBalance;
+  const clipperPercent = 100 - FEE_PERCENT;
 
   return (
     <>
@@ -33,11 +36,11 @@ export function CreateCampaignStep3({
         {[
           { label: "Campaign Name", value: form.name || "Untitled Campaign" },
           { label: "Source Type", value: form.sourceType === "vod" ? "Livestream VOD" : "Single Video" },
-          { label: "Source Asset", value: assetFile?.name || form.assetUrl || "Not provided" },
+          { label: "Source Asset", value: form.assetUrl || "Not provided" },
           { label: "Moment Notes", value: form.bestMoments ? "Included" : "Not included" },
           { label: "Platforms", value: form.platforms.join(", ") || "None selected" },
           { label: "CPM (gross)", value: fmt(cpmNum) },
-          { label: "Clipper CPM (80%)", value: fmt(clipperCpm(cpmNum)) },
+          { label: `Clipper CPM (${clipperPercent}%)`, value: fmt(clipperCpm(cpmNum)) },
           { label: "Total Budget", value: fmt(budgetNum) },
           { label: "View Ceiling", value: viewCeiling.toLocaleString() + " views" },
           { label: "Campaign End", value: form.end || "Not set" },
@@ -62,9 +65,10 @@ export function CreateCampaignStep3({
         {canLaunch ? (
           <button
             onClick={onLaunch}
-            className="flex-1 py-3 bg-accent text-accent-foreground text-sm font-black rounded hover:bg-accent/90 transition-all"
+            disabled={launching}
+            className="flex-1 py-3 bg-accent text-accent-foreground text-sm font-black rounded hover:bg-accent/90 transition-all disabled:opacity-50"
           >
-            Launch — debit {fmt(budgetNum)} from wallet
+            {launching ? "Launching…" : `Launch — debit ${fmt(budgetNum)} from wallet`}
           </button>
         ) : (
           <button

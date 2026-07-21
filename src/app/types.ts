@@ -1,8 +1,8 @@
 export type AuthRole = "clipper" | "funder";
-export type ClipperTab = "overview" | "campaigns" | "clips" | "earnings";
-export type FunderTab = "overview" | "campaigns" | "create" | "billing";
-export type AdminTab = "pending" | "view-verify" | "approved" | "all-campaigns" | "payouts";
-export type WalletTransactionType = "top_up" | "campaign_escrow";
+export type ClipperTab = "overview" | "campaigns" | "clips" | "earnings" | "settings";
+export type FunderTab = "overview" | "campaigns" | "create" | "billing" | "settings";
+export type AdminTab = "pending" | "view-verify" | "approved" | "all-campaigns" | "payouts" | "audit-logs";
+export type WalletTransactionType = "top_up" | "campaign_escrow" | "escrow_release" | "refund" | "adjustment";
 export type CreateStep = 1 | 2 | 3;
 export type SourceType = "video" | "vod";
 
@@ -48,6 +48,7 @@ export interface ApprovedClip extends PendingClipRow {
   viewsVerified: number;
   approvedDate: string;
   earningsDue?: number;
+  payoutStatus?: string;
 }
 
 export interface WalletTransaction {
@@ -63,6 +64,7 @@ export interface MyClip {
   id: string;
   campaign: string;
   platform: string;
+  postUrl?: string;
   date: string;
   status: string;
   views: number;
@@ -76,11 +78,23 @@ export interface Payout {
   campaign: string;
   amount: number;
   status: string;
+  paystackRef?: string | null;
+  failureReason?: string | null;
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  actor: string;
+  createdAt: string;
 }
 
 export interface CreateCampaignForm {
   name: string;
   assetUrl: string;
+  imageUrl: string;
   sourceType: SourceType;
   bestMoments: string;
   description: string;
@@ -89,4 +103,12 @@ export interface CreateCampaignForm {
   budget: string;
   start: string;
   end: string;
+}
+
+export interface EarningsSummary {
+  totalEarned: number;
+  pendingThisWeek: number;
+  paidOut: number;
+  clipsSubmitted: number;
+  clipsVerified: number;
 }

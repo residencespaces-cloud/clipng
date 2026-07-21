@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "@/app/lib/api/client";
 import { emitNavigationStart } from "@/app/lib/page-transition";
 import { useAuth } from "@/app/lib/auth/auth-context";
+import { PageLoader } from "@/app/components/shared/PageLoader";
 import type {
   AdminTab,
   ApprovedClip,
@@ -14,8 +16,11 @@ import type {
 import { AdminPayouts } from "./AdminPayouts";
 import { AllCampaigns } from "./AllCampaigns";
 import { ApprovedClips } from "./ApprovedClips";
+import { AuditLogs } from "./AuditLogs";
 import { PendingReview } from "./PendingReview";
 import { ViewVerification } from "./ViewVerification";
+
+const FEE_PERCENT = Number(process.env.NEXT_PUBLIC_PLATFORM_FEE_PERCENT ?? 20);
 
 export function AdminPanel() {
   const { logout } = useAuth();
@@ -23,8 +28,10 @@ export function AdminPanel() {
   const [pendingClips, setPendingClips] = useState<PendingClip[]>([]);
   const [awaitingViews, setAwaitingViews] = useState<AwaitingViewsClip[]>([]);
   const [readyForPayout, setReadyForPayout] = useState<ApprovedClip[]>([]);
-  const [payoutStatus, setPayoutStatus] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const refresh = useCallback(async () => {
     try {
@@ -33,11 +40,11 @@ export function AdminPanel() {
         api.admin.awaitingViews() as Promise<AwaitingViewsClip[]>,
         api.admin.readyForPayout() as Promise<ApprovedClip[]>,
       ]);
-      setPendingClips(pending.map((c) => ({ ...c, codeVerified: false })));
+      setPendingClips(pending);
       setAwaitingViews(awaiting.map((c) => ({ ...c, viewCount: c.viewCount ?? "" })));
       setReadyForPayout(ready);
-    } catch {
-      // API unavailable — keep empty state
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load admin data");
     } finally {
       setLoading(false);
     }
@@ -48,27 +55,60 @@ export function AdminPanel() {
   }, [refresh]);
 
   const approveSubmission = async (id: string) => {
-    await api.admin.approve(id, true);
-    await refresh();
+    setActionId(id);
+    try {
+      await api.admin.approve(id, true);
+      toast.success("Clip approved");
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Approve failed");
+    } finally {
+      setActionId(null);
+    }
   };
 
-  const rejectSubmission = async (id: string) => {
-    await api.admin.reject(id);
-    await refresh();
+  const rejectSubmission = async (id: string, reason?: string) => {
+    setActionId(id);
+    try {
+      await api.admin.reject(id, reason);
+      toast.success("Clip rejected");
+      setRejectingId(null);
+      setRejectReason("");
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Reject failed");
+    } finally {
+      setActionId(null);
+    }
   };
 
   const confirmViews = async (id: string) => {
     const clip = awaitingViews.find((c) => c.id === id);
     const views = parseInt(clip?.viewCount ?? "") || 0;
     if (!clip || views <= 0) return;
-    await api.admin.verifyViews(id, views);
-    await refresh();
+    setActionId(id);
+    try {
+      await api.admin.verifyViews(id, views);
+      toast.success("Views confirmed");
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Verification failed");
+    } finally {
+      setActionId(null);
+    }
   };
 
   const triggerPayout = async (id: string) => {
-    await api.admin.triggerPayout(id);
-    setPayoutStatus((prev) => ({ ...prev, [id]: "Triggered" }));
-    await refresh();
+    setActionId(id);
+    try {
+      await api.admin.triggerPayout(id);
+      toast.success("Payout triggered");
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Payout failed");
+    } finally {
+      setActionId(null);
+    }
   };
 
   const handleLogout = async () => {
@@ -82,7 +122,10 @@ export function AdminPanel() {
     { key: "approved", label: "Ready for Payout" },
     { key: "all-campaigns", label: "All Campaigns" },
     { key: "payouts", label: "Payouts" },
+    { key: "audit-logs", label: "Audit Logs" },
   ];
+
+  if (loading) return <PageLoader />;
 
   return (
     <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -99,6 +142,9 @@ export function AdminPanel() {
             <span className="text-border">·</span>
             <span>{awaitingViews.length} awaiting views</span>
           </div>
+          <button onClick={refresh} className="p-1.5 text-muted-foreground hover:text-foreground" aria-label="Refresh">
+            <RefreshCw size={14} />
+          </button>
           <button
             onClick={handleLogout}
             className="inline-flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground border border-border rounded hover:text-red-400 hover:border-red-500/30 transition-colors"
@@ -117,7 +163,7 @@ export function AdminPanel() {
               : t.key === "view-verify"
                 ? awaitingViews.length
                 : t.key === "approved"
-                  ? readyForPayout.filter((c) => (payoutStatus[c.id] ?? "Pending") === "Pending").length
+                  ? readyForPayout.filter((c) => c.payoutStatus === "Pending").length
                   : 0;
           return (
             <button
@@ -135,15 +181,23 @@ export function AdminPanel() {
       </div>
 
       <div className="p-6">
-        {loading && <p className="text-sm text-muted-foreground mb-4">Loading admin data…</p>}
         {tab === "pending" && (
           <PendingReview
             clips={pendingClips}
+            actionId={actionId}
+            rejectingId={rejectingId}
+            rejectReason={rejectReason}
             onApprove={approveSubmission}
             onReject={rejectSubmission}
-            onApproveAll={() =>
-              pendingClips.filter((c) => c.codeVerified).forEach((c) => approveSubmission(c.id))
-            }
+            onStartReject={(id) => setRejectingId(id)}
+            onCancelReject={() => { setRejectingId(null); setRejectReason(""); }}
+            onRejectReasonChange={setRejectReason}
+            onApproveAll={async () => {
+              const verified = pendingClips.filter((c) => c.codeVerified);
+              for (const c of verified) {
+                await approveSubmission(c.id);
+              }
+            }}
             onCodeVerifiedChange={(id, verified) =>
               setPendingClips((prev) =>
                 prev.map((clip) =>
@@ -156,6 +210,7 @@ export function AdminPanel() {
         {tab === "view-verify" && (
           <ViewVerification
             clips={awaitingViews}
+            actionId={actionId}
             onConfirmViews={confirmViews}
             onViewCountChange={(id, value) =>
               setAwaitingViews((prev) =>
@@ -167,12 +222,14 @@ export function AdminPanel() {
         {tab === "approved" && (
           <ApprovedClips
             approvedClips={readyForPayout}
-            payoutStatus={payoutStatus}
+            actionId={actionId}
+            feePercent={FEE_PERCENT}
             onTriggerPayout={triggerPayout}
           />
         )}
         {tab === "all-campaigns" && <AllCampaigns />}
         {tab === "payouts" && <AdminPayouts />}
+        {tab === "audit-logs" && <AuditLogs />}
       </div>
     </div>
   );

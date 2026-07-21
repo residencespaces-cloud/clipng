@@ -5,13 +5,17 @@ import type { ApprovedClip } from "@/app/types";
 
 export function ApprovedClips({
   approvedClips,
-  payoutStatus,
+  actionId,
+  feePercent,
   onTriggerPayout,
 }: {
   approvedClips: ApprovedClip[];
-  payoutStatus: Record<string, string>;
+  actionId: string | null;
+  feePercent: number;
   onTriggerPayout: (id: string) => void;
 }) {
+  const clipperPercent = 100 - feePercent;
+
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold">Ready for Payout</h3>
@@ -26,7 +30,7 @@ export function ApprovedClips({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  {["Clipper", "Campaign", "Views Verified", "Earnings Due (80%)", "Payout Status", "Action"].map((h) => (
+                  {["Clipper", "Campaign", "Views Verified", `Earnings Due (${clipperPercent}%)`, "Payout Status", "Action"].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-xs text-muted-foreground font-medium whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -34,7 +38,7 @@ export function ApprovedClips({
               <tbody>
                 {approvedClips.map((c) => {
                   const earnings = c.earningsDue ?? 0;
-                  const pStatus = payoutStatus[c.id] ?? c.status ?? "Pending";
+                  const pStatus = c.payoutStatus ?? "Pending";
                   return (
                     <tr key={c.id} className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors">
                       <td className="px-4 py-3 font-medium whitespace-nowrap">{c.clipper}</td>
@@ -46,12 +50,13 @@ export function ApprovedClips({
                         {pStatus === "Pending" ? (
                           <button
                             onClick={() => onTriggerPayout(c.id)}
-                            className="px-3 py-1.5 text-xs bg-accent/10 text-accent border border-accent/20 rounded hover:bg-accent hover:text-accent-foreground transition-all font-medium whitespace-nowrap"
+                            disabled={actionId === c.id}
+                            className="px-3 py-1.5 text-xs bg-accent/10 text-accent border border-accent/20 rounded hover:bg-accent hover:text-accent-foreground transition-all font-medium whitespace-nowrap disabled:opacity-50"
                           >
-                            Trigger Payout
+                            {actionId === c.id ? "Triggering…" : "Trigger Payout"}
                           </button>
                         ) : (
-                          <span className="text-xs text-muted-foreground font-mono">Done</span>
+                          <span className="text-xs text-muted-foreground font-mono">{pStatus}</span>
                         )}
                       </td>
                     </tr>

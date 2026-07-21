@@ -1,31 +1,28 @@
+import { Prisma } from "@prisma/client";
 import { SubmissionStatus } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { validatePublicPostUrl } from "@/server/submission-proof";
 import { koboToNaira } from "@/server/money";
+import { normalizeStatus } from "@/server/status";
+import { notifyUser } from "@/server/services/notifications.service";
 
 function mapMyClip(s: {
   id: string;
   platform: string;
+  postUrl: string;
   status: SubmissionStatus;
   viewsVerified: number | null;
   earningsKobo: number | null;
   submittedAt: Date;
   campaign: { name: string };
 }) {
-  const statusMap: Record<SubmissionStatus, string> = {
-    pending_review: "Pending",
-    rejected: "Rejected",
-    approved_awaiting_views: "Approved",
-    views_verified: "Verified",
-    payout_triggered: "Verified",
-    paid: "Paid",
-  };
   return {
     id: s.id,
     campaign: s.campaign.name,
     platform: s.platform,
+    postUrl: s.postUrl,
     date: s.submittedAt.toISOString().slice(0, 10),
-    status: statusMap[s.status],
+    status: normalizeStatus(s.status),
     views: s.viewsVerified ?? 0,
     earnings: s.earningsKobo ? koboToNaira(s.earningsKobo) : 0,
   };
@@ -43,24 +40,43 @@ export async function createSubmission(
 
   const participation = await prisma.campaignParticipation.findUnique({
     where: { campaignId_clipperId: { campaignId: dto.campaignId, clipperId: userId } },
+    include: { campaign: true },
   });
   if (!participation) throw new Error("Join the campaign before submitting a clip.");
 
-  const submission = await prisma.clipSubmission.create({
-    data: {
-      participationId: participation.id,
-      campaignId: dto.campaignId,
-      clipperId: userId,
-      platform: dto.platform,
-      postUrl: dto.postUrl.trim(),
-      verificationCode: participation.verificationCode,
-      codeConfirmed: dto.codeConfirmed,
-      status: SubmissionStatus.pending_review,
-    },
-    include: { campaign: true },
-  });
+  if (!participation.campaign.platforms.includes(dto.platform)) {
+    throw new Error(`Platform "${dto.platform}" is not allowed for this campaign.`);
+  }
 
-  return mapMyClip(submission);
+  try {
+    const submission = await prisma.clipSubmission.create({
+      data: {
+        participationId: participation.id,
+        campaignId: dto.campaignId,
+        clipperId: userId,
+        platform: dto.platform,
+        postUrl: dto.postUrl.trim(),
+        verificationCode: participation.verificationCode,
+        codeConfirmed: dto.codeConfirmed,
+        status: SubmissionStatus.pending_review,
+      },
+      include: { campaign: true },
+    });
+
+    await notifyUser(
+      userId,
+      "Clip submitted",
+      `Your clip for "${submission.campaign.name}" is pending admin review.`,
+      { submissionId: submission.id },
+    );
+
+    return mapMyClip(submission);
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      throw new Error("This post URL has already been submitted.");
+    }
+    throw e;
+  }
 }
 
 export async function listMine(userId: string) {
@@ -81,7 +97,8 @@ export async function getEarningsSummary(userId: string) {
     .filter(
       (s) =>
         s.status === SubmissionStatus.approved_awaiting_views ||
-        s.status === SubmissionStatus.views_verified,
+        s.status === SubmissionStatus.views_verified ||
+        s.status === SubmissionStatus.payout_triggered,
     )
     .reduce((sum, s) => sum + (s.earningsKobo ?? 0), 0);
   const paid = submissions
@@ -92,5 +109,12 @@ export async function getEarningsSummary(userId: string) {
     totalEarned: koboToNaira(totalEarned),
     pendingThisWeek: koboToNaira(pending),
     paidOut: koboToNaira(paid),
+    clipsSubmitted: submissions.length,
+    clipsVerified: submissions.filter(
+      (s) =>
+        s.status === SubmissionStatus.views_verified ||
+        s.status === SubmissionStatus.payout_triggered ||
+        s.status === SubmissionStatus.paid,
+    ).length,
   };
 }

@@ -1,11 +1,28 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Film, Play } from "lucide-react";
 import { BudgetBar } from "@/app/components/shared/BudgetBar";
 import { PlatformBadge } from "@/app/components/shared/PlatformBadge";
 import { StatusBadge } from "@/app/components/shared/StatusBadge";
-import { CAMPAIGNS } from "@/app/data/mock-data";
+import { api } from "@/app/lib/api/client";
+import { clipperCpm, fmt } from "@/app/lib/format";
+import type { Campaign } from "@/app/types";
 
 export function LandingHero() {
+  const [featured, setFeatured] = useState<Campaign | null>(null);
+  const [campaignCount, setCampaignCount] = useState(0);
+
+  useEffect(() => {
+    api.campaigns.public()
+      .then((campaigns) => {
+        setCampaignCount(campaigns.length);
+        setFeatured(campaigns[0] ?? null);
+      })
+      .catch(() => undefined);
+  }, []);
+
   return (
     <section className="pt-32 pb-24 px-6">
       <div className="max-w-7xl mx-auto">
@@ -13,7 +30,7 @@ export function LandingHero() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-mono mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              12 active campaigns · ₦2.4M paid out
+              {campaignCount > 0 ? `${campaignCount} active campaigns` : "Campaigns launching soon"}
             </div>
             <h1
               className="text-6xl lg:text-8xl font-black leading-none uppercase mb-6"
@@ -39,66 +56,58 @@ export function LandingHero() {
                 Fund a Campaign <Film size={16} />
               </Link>
             </div>
-            <div className="flex gap-8 pt-6 border-t border-border">
-              {[
-                { label: "Paid out", value: "₦2.4M" },
-                { label: "Clips verified", value: "847" },
-                { label: "Active campaigns", value: "12" },
-              ].map((s) => (
-                <div key={s.label}>
-                  <div className="text-2xl font-black text-primary" style={{ fontFamily: "'DM Mono', monospace" }}>{s.value}</div>
-                  <div className="text-xs text-muted-foreground">{s.label}</div>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="relative">
             <div className="bg-card border border-border rounded-xl p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold">Live Campaign</span>
-                <StatusBadge status="Active" />
+                <StatusBadge status={featured?.status ?? "Active"} />
               </div>
               <div className="relative bg-secondary rounded-lg overflow-hidden aspect-video group">
-                <img
-                  src={CAMPAIGNS[0].image}
-                  alt={CAMPAIGNS[0].name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
+                {featured?.image ? (
+                  <img
+                    src={featured.image}
+                    alt={featured.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">ClipNG</div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-4 flex items-end justify-between gap-3">
-                  <p className="text-xs text-white font-mono">{"Burna Boy — 'City Boys' Drop"}</p>
+                  <p className="text-xs text-white font-mono">{featured?.name ?? "Browse campaigns"}</p>
                   <span className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
                     <Play size={15} fill="currentColor" />
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                {["TikTok", "Instagram"].map((p) => <PlatformBadge key={p} p={p} />)}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-secondary rounded-lg p-3">
-                  <div className="text-xs text-muted-foreground">Your CPM</div>
-                  <div className="text-lg font-black text-primary" style={{ fontFamily: "'DM Mono', monospace" }}>₦480</div>
-                  <div className="text-xs text-muted-foreground">per 1k views</div>
-                </div>
-                <div className="bg-secondary rounded-lg p-3">
-                  <div className="text-xs text-muted-foreground">Budget left</div>
-                  <div className="text-lg font-black text-accent" style={{ fontFamily: "'DM Mono', monospace" }}>₦187K</div>
-                  <div className="text-xs text-muted-foreground">of ₦300K</div>
-                </div>
-              </div>
-              <BudgetBar remaining={187400} total={300000} />
+              {featured && (
+                <>
+                  <div className="flex gap-2">
+                    {featured.platforms.map((p) => <PlatformBadge key={p} p={p} />)}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-secondary rounded-lg p-3">
+                      <div className="text-xs text-muted-foreground">Your CPM</div>
+                      <div className="text-lg font-black text-primary" style={{ fontFamily: "'DM Mono', monospace" }}>{fmt(clipperCpm(featured.cpm))}</div>
+                      <div className="text-xs text-muted-foreground">per 1k views</div>
+                    </div>
+                    <div className="bg-secondary rounded-lg p-3">
+                      <div className="text-xs text-muted-foreground">Budget left</div>
+                      <div className="text-lg font-black text-accent" style={{ fontFamily: "'DM Mono', monospace" }}>{fmt(featured.remaining)}</div>
+                      <div className="text-xs text-muted-foreground">of {fmt(featured.budget)}</div>
+                    </div>
+                  </div>
+                  <BudgetBar remaining={featured.remaining} total={featured.budget} />
+                </>
+              )}
               <Link
                 href="/clipper"
                 className="block w-full py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all text-center"
               >
                 Join Campaign →
               </Link>
-            </div>
-            <div className="absolute -bottom-4 -left-4 bg-card border border-primary/30 rounded-lg px-4 py-3 shadow-xl">
-              <div className="text-xs text-muted-foreground">Adaeze earned last week</div>
-              <div className="text-xl font-black text-primary" style={{ fontFamily: "'DM Mono', monospace" }}>₦40,416</div>
             </div>
           </div>
         </div>
