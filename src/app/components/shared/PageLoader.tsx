@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { BrandLogo } from "@/app/components/shared/BrandLogo";
 
 const FRAME_COUNT = 9;
 
@@ -23,15 +24,10 @@ export function PageLoader({ visible = true }: { visible?: boolean }) {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05, duration: 0.3 }}
-              className="text-center"
+              className="text-center flex flex-col items-center"
             >
-              <p
-                className="text-4xl sm:text-5xl font-black tracking-tight"
-                style={{ fontFamily: "'Big Shoulders Display', sans-serif" }}
-              >
-                CLIP<span className="text-primary">NG</span>
-              </p>
-              <p className="text-xs font-mono text-muted-foreground mt-2 tracking-widest uppercase">
+              <BrandLogo size="lg" href={null} />
+              <p className="text-xs font-mono text-muted-foreground mt-3 tracking-widest uppercase">
                 Loading
                 <span className="clip-loading-dots" aria-hidden="true" />
               </p>

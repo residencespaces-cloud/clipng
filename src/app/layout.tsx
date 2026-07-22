@@ -7,7 +7,7 @@ import { Providers } from "@/app/providers";
 import "@/styles/index.css";
 
 export const metadata: Metadata = {
-  title: "ClipNG — Get Paid to Clip",
+  title: "KudiClip — Get Paid to Clip",
   description:
     "Nigerian campaigns. Naira payouts. Clip Afrobeats drops, skits, and brand content — earn per every 1,000 views.",
 };

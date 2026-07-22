@@ -122,7 +122,7 @@ export async function initiateTransfer(params: {
       amount: params.amountKobo,
       recipient: params.recipientCode,
       reference: params.reference,
-      reason: params.reason ?? "ClipNG clipper payout",
+      reason: params.reason ?? "KudiClip clipper payout",
     }),
   });
 }

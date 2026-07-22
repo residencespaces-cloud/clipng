@@ -287,7 +287,7 @@ export async function triggerPayout(adminId: string, submissionId: string) {
       amountKobo: submission.payoutItem.amountKobo,
       recipientCode,
       reference,
-      reason: `ClipNG payout — ${submission.campaign.name}`,
+      reason: `KudiClip payout — ${submission.campaign.name}`,
     });
     paystackRef = transfer.reference;
   }

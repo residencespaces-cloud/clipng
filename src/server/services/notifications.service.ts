@@ -34,7 +34,7 @@ export async function notifyUser(
     await sendEmail({
       to: user.email,
       subject,
-      html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto"><h2>${subject}</h2><p>${body}</p><hr/><p style="color:#666;font-size:12px">ClipNG — Get Paid to Clip</p></div>`,
+      html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto"><h2>${subject}</h2><p>${body}</p><hr/><p style="color:#666;font-size:12px">KudiClip — Get Paid to Clip</p></div>`,
     });
     await prisma.notification.update({
       where: { id: notification.id },

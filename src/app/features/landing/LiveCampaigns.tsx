@@ -43,7 +43,7 @@ export function LiveCampaigns() {
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">ClipNG</div>
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">KudiClip</div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                   <span className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm border border-white/15 text-white flex items-center justify-center">

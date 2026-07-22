@@ -6,7 +6,7 @@ type SendEmailParams = {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM ?? "ClipNG <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM ?? "KudiClip <onboarding@resend.dev>";
 
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY not set — skipping send to", to);

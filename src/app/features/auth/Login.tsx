@@ -111,7 +111,7 @@ export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
         </form>
 
         <p className="text-sm text-muted-foreground text-center mt-6">
-          New to ClipNG?{" "}
+          New to KudiClip?{" "}
           <Link href={`/signup?role=${role}`} className="text-primary font-medium hover:underline">
             Create an account
           </Link>

@@ -24,7 +24,7 @@ export function LandingHero() {
   }, []);
 
   return (
-    <section className="pt-32 pb-24 px-6">
+    <section className="pt-28 pb-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div>
@@ -72,7 +72,7 @@ export function LandingHero() {
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">ClipNG</div>
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">KudiClip</div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-4 flex items-end justify-between gap-3">

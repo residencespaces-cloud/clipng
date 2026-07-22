@@ -5,7 +5,7 @@ import { RoleGate } from "@/app/components/shared/RoleGate";
 import { PageLoader } from "@/app/components/shared/PageLoader";
 
 export const metadata: Metadata = {
-  title: "Funder Dashboard — ClipNG",
+  title: "Funder Dashboard — KudiClip",
 };
 
 export default function FunderPage() {

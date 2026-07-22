@@ -3,7 +3,7 @@ import { ClipperDashboard } from "@/app/features/clipper/ClipperDashboard";
 import { RoleGate } from "@/app/components/shared/RoleGate";
 
 export const metadata: Metadata = {
-  title: "Clipper Dashboard — ClipNG",
+  title: "Clipper Dashboard — KudiClip",
 };
 
 export default function ClipperPage() {

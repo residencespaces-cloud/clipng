@@ -8,11 +8,11 @@ export function setTokens(tokens: ApiTokens | null) {
   memoryTokens = tokens;
   if (typeof window !== 'undefined') {
     if (tokens) {
-      localStorage.setItem('clipng_tokens', JSON.stringify(tokens));
-      document.cookie = 'clipng_session=1; path=/; max-age=604800; SameSite=Lax';
+      localStorage.setItem('kudiclip_tokens', JSON.stringify(tokens));
+      document.cookie = 'kudiclip_session=1; path=/; max-age=604800; SameSite=Lax';
     } else {
-      localStorage.removeItem('clipng_tokens');
-      document.cookie = 'clipng_session=; path=/; max-age=0';
+      localStorage.removeItem('kudiclip_tokens');
+      document.cookie = 'kudiclip_session=; path=/; max-age=0';
     }
   }
 }
@@ -20,7 +20,7 @@ export function setTokens(tokens: ApiTokens | null) {
 export function getTokens(): ApiTokens | null {
   if (memoryTokens) return memoryTokens;
   if (typeof window === 'undefined') return null;
-  const raw = localStorage.getItem('clipng_tokens');
+  const raw = localStorage.getItem('kudiclip_tokens');
   if (!raw) return null;
   try {
     memoryTokens = JSON.parse(raw) as ApiTokens;

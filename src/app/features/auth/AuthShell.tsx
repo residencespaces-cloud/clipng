@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
+import { BrandLogo } from "@/app/components/shared/BrandLogo";
 
 export function AuthShell({
   children,
@@ -19,9 +20,7 @@ export function AuthShell({
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft size={14} />
-            <span className="text-xl font-black tracking-tight" style={{ fontFamily: "'Big Shoulders Display', sans-serif" }}>
-              CLIP<span className="text-primary">NG</span>
-            </span>
+            <BrandLogo size="md" href={null} />
           </button>
           <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Auth</span>
         </div>

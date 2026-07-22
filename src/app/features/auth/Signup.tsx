@@ -203,7 +203,7 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
           </button>
 
           <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-            By signing up you agree to ClipNG campaign rules and payout terms.
+            By signing up you agree to KudiClip campaign rules and payout terms.
           </p>
         </form>
 

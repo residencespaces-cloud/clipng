@@ -83,7 +83,7 @@ export async function signupClipper(body: {
     });
     await notifyUser(
       user.id,
-      "Welcome to ClipNG",
+      "Welcome to KudiClip",
       `Hi ${body.name}, your clipper account is ready. Browse live campaigns and start earning.`,
     );
     return issueTokens(user);
@@ -124,7 +124,7 @@ export async function signupFunder(body: {
     });
     await notifyUser(
       user.id,
-      "Welcome to ClipNG",
+      "Welcome to KudiClip",
       `Hi ${body.business}, your funder account is ready. Fund your wallet and launch your first campaign.`,
     );
     return issueTokens(user);

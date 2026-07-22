@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
 
   // Client stores tokens in localStorage; middleware only blocks unauthenticated
   // deep-links when no session hint cookie is present. AuthProvider handles real checks.
-  const hasSession = request.cookies.get("clipng_session")?.value === "1";
+  const hasSession = request.cookies.get("kudiclip_session")?.value === "1";
   if (!hasSession) {
     const login = new URL("/login", request.url);
     login.searchParams.set("next", pathname);

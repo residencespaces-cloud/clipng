@@ -1,4 +1,4 @@
-# ClipNG — Vercel Serverless
+# KudiClip — Vercel Serverless
 
 Everything runs in this Next.js app (no separate backend server).
 
@@ -34,9 +34,9 @@ npm run dev
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@clipng.ng | password123 |
-| Funder | funder@clipng.ng | password123 |
-| Clipper | clipper@clipng.ng | password123 |
+| Admin | admin@kudiclip.ng | password123 |
+| Funder | funder@kudiclip.ng | password123 |
+| Clipper | clipper@kudiclip.ng | password123 |
 
 ## Vercel deploy
 

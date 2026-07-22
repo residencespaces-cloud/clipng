@@ -7,6 +7,7 @@ import { api } from "@/app/lib/api/client";
 import { emitNavigationStart } from "@/app/lib/page-transition";
 import { useAuth } from "@/app/lib/auth/auth-context";
 import { PageLoader } from "@/app/components/shared/PageLoader";
+import { BrandLogo } from "@/app/components/shared/BrandLogo";
 import type {
   AdminTab,
   ApprovedClip,
@@ -131,9 +132,7 @@ export function AdminPanel() {
     <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       <header className="border-b border-border px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-xl font-black" style={{ fontFamily: "'Big Shoulders Display', sans-serif" }}>
-            CLIP<span className="text-primary">NG</span>
-          </span>
+          <BrandLogo size="md" href="/" />
           <span className="text-xs font-mono bg-accent/15 text-accent border border-accent/20 px-2 py-0.5 rounded">ADMIN</span>
         </div>
         <div className="flex items-center gap-3">

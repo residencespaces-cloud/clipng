@@ -3,7 +3,7 @@ import { AdminPanel } from "@/app/features/admin/AdminPanel";
 import { RoleGate } from "@/app/components/shared/RoleGate";
 
 export const metadata: Metadata = {
-  title: "Admin — ClipNG",
+  title: "Admin — KudiClip",
 };
 
 export default function AdminPage() {

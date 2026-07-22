@@ -8,10 +8,10 @@ async function main() {
   const passwordHash = await bcrypt.hash("password123", 12);
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@clipng.ng" },
+    where: { email: "admin@kudiclip.ng" },
     update: {},
     create: {
-      email: "admin@clipng.ng",
+      email: "admin@kudiclip.ng",
       passwordHash,
       role: UserRole.admin,
       emailVerified: true,
@@ -19,10 +19,10 @@ async function main() {
   });
 
   const funder = await prisma.user.upsert({
-    where: { email: "funder@clipng.ng" },
+    where: { email: "funder@kudiclip.ng" },
     update: {},
     create: {
-      email: "funder@clipng.ng",
+      email: "funder@kudiclip.ng",
       passwordHash,
       role: UserRole.funder,
       emailVerified: true,
@@ -37,10 +37,10 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { email: "clipper@clipng.ng" },
+    where: { email: "clipper@kudiclip.ng" },
     update: {},
     create: {
-      email: "clipper@clipng.ng",
+      email: "clipper@kudiclip.ng",
       passwordHash,
       role: UserRole.clipper,
       emailVerified: true,

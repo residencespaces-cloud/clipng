@@ -3,7 +3,7 @@ import { isValidEmail, isValidPassword } from "@/server/validation";
 
 describe("validation", () => {
   it("validates email", () => {
-    expect(isValidEmail("test@clipng.ng")).toBe(true);
+    expect(isValidEmail("test@kudiclip.ng")).toBe(true);
     expect(isValidEmail("bad")).toBe(false);
   });
 

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { LogOut, Menu, Settings, X } from "lucide-react";
+import { BrandLogo } from "@/app/components/shared/BrandLogo";
 import { emitNavigationStart } from "@/app/lib/page-transition";
 import { useAuth } from "@/app/lib/auth/auth-context";
 
@@ -47,9 +48,7 @@ export function DashboardShell<T extends string>({
 
       <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static z-40 flex flex-col w-56 bg-sidebar border-r border-sidebar-border h-full transition-transform duration-200`}>
         <div className="flex items-center justify-between px-5 h-14 border-b border-sidebar-border shrink-0">
-          <span className="text-lg font-black" style={{ fontFamily: "'Big Shoulders Display', sans-serif" }}>
-            CLIP<span className="text-primary">NG</span>
-          </span>
+          <BrandLogo size="sm" href={null} />
           <button className="lg:hidden text-muted-foreground" onClick={onSidebarClose}>
             <X size={18} />
           </button>
