@@ -34,6 +34,7 @@ type AuthContextValue = {
     phone: string;
     password: string;
     business: string;
+    signupToken?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -107,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     phone: string;
     password: string;
     business: string;
+    signupToken?: string;
   }) => {
     const tokens = await api.auth.signupFunder(body);
     await completeSignup(tokens);

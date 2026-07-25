@@ -37,7 +37,13 @@ export async function listBanks(): Promise<PaystackBank[]> {
     return DEV_BANKS;
   }
   const banks = await paystackFetch<PaystackBank[]>("/bank?country=nigeria");
-  return banks.sort((a, b) => a.name.localeCompare(b.name));
+  // Paystack can return the same bank code more than once (e.g. aliases).
+  const byCode = new Map<string, PaystackBank>();
+  for (const bank of banks) {
+    if (!bank.code || byCode.has(bank.code)) continue;
+    byCode.set(bank.code, bank);
+  }
+  return [...byCode.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function resolveAccountNumber(accountNumber: string, bankCode: string) {

@@ -22,7 +22,9 @@ export async function getBalance(userId: string) {
   };
 }
 
-function mapLedgerType(type: WalletLedgerType): "top_up" | "campaign_escrow" | "escrow_release" | "refund" | "adjustment" {
+function mapLedgerType(
+  type: WalletLedgerType,
+): "top_up" | "campaign_escrow" | "escrow_release" | "refund" | "adjustment" | "signup_credit" {
   switch (type) {
     case WalletLedgerType.top_up:
       return "top_up";
@@ -32,6 +34,8 @@ function mapLedgerType(type: WalletLedgerType): "top_up" | "campaign_escrow" | "
       return "escrow_release";
     case WalletLedgerType.refund:
       return "refund";
+    case WalletLedgerType.signup_credit:
+      return "signup_credit";
     case WalletLedgerType.payout_debit:
     case WalletLedgerType.adjustment:
       return "adjustment";

@@ -1,8 +1,8 @@
 export type AuthRole = "clipper" | "funder";
 export type ClipperTab = "overview" | "campaigns" | "clips" | "earnings" | "settings";
 export type FunderTab = "overview" | "campaigns" | "create" | "billing" | "settings";
-export type AdminTab = "pending" | "view-verify" | "approved" | "all-campaigns" | "payouts" | "audit-logs";
-export type WalletTransactionType = "top_up" | "campaign_escrow" | "escrow_release" | "refund" | "adjustment";
+export type AdminTab = "pending" | "view-verify" | "approved" | "all-campaigns" | "payouts" | "audit-logs" | "signup-tokens";
+export type WalletTransactionType = "top_up" | "campaign_escrow" | "escrow_release" | "refund" | "adjustment" | "signup_credit";
 export type CreateStep = 1 | 2 | 3;
 export type SourceType = "video" | "vod";
 

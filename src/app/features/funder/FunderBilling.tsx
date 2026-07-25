@@ -124,7 +124,17 @@ export function FunderBilling({
                 >
                   {t.amount >= 0 ? "+" : ""}{fmt(Math.abs(t.amount))}
                 </p>
-                <StatusBadge status={t.type === "top_up" ? "Top-up" : t.type === "campaign_escrow" ? "Escrow" : t.type} />
+                <StatusBadge
+                  status={
+                    t.type === "top_up"
+                      ? "Top-up"
+                      : t.type === "campaign_escrow"
+                        ? "Escrow"
+                        : t.type === "signup_credit"
+                          ? "Signup credit"
+                          : t.type
+                  }
+                />
               </div>
             </div>
           ))

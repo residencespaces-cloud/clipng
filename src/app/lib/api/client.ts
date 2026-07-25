@@ -181,5 +181,33 @@ export const api = {
     campaigns: () => apiFetch<import('@/app/types').Campaign[]>('/admin/campaigns'),
     payouts: () => apiFetch<import('@/app/types').Payout[]>('/admin/payouts'),
     auditLogs: () => apiFetch<import('@/app/types').AuditLog[]>('/admin/audit-logs'),
+    signupTokens: {
+      list: () =>
+        apiFetch<
+          {
+            id: string;
+            code: string;
+            createdFor: string;
+            creditNaira: number;
+            used: boolean;
+            usedByEmail: string | null;
+            usedAt: string | null;
+            createdByEmail: string | null;
+            createdAt: string;
+          }[]
+        >('/admin/signup-tokens'),
+      create: (body: { createdFor: string; creditNaira: number }) =>
+        apiFetch<{
+          id: string;
+          code: string;
+          createdFor: string;
+          creditNaira: number;
+          createdAt: string;
+          used: boolean;
+        }>('/admin/signup-tokens', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }),
+    },
   },
 };

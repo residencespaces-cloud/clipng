@@ -8,11 +8,25 @@ export async function POST(request: Request) {
     for (const key of required) {
       if (!body[key]) return jsonError(`${key} is required`);
     }
-    const tokens = await signupFunder(body);
+    const tokens = await signupFunder({
+      ...body,
+      signupToken: body.signupToken ? String(body.signupToken) : undefined,
+    });
     return ok(tokens, 201);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Signup failed";
-    if (msg.includes("Unique constraint")) return jsonError("Email already registered", 409);
+    if (msg.includes("already exists") || msg.includes("Unique constraint")) {
+      return jsonError("Email already registered", 409);
+    }
+    if (
+      msg.includes("token") ||
+      msg.includes("valid") ||
+      msg.includes("phone") ||
+      msg.includes("Password") ||
+      msg.includes("email")
+    ) {
+      return jsonError(msg, 400);
+    }
     return jsonError(msg, 500);
   }
 }

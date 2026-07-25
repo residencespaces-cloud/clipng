@@ -128,7 +128,7 @@ export function BankAccountFields({
         >
           <option value="">{banksLoading ? "Loading banks…" : "Select your bank"}</option>
           {banks.map((b) => (
-            <option key={b.code} value={b.code}>
+            <option key={`${b.code}-${b.name}`} value={b.code}>
               {b.name}
             </option>
           ))}

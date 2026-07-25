@@ -8,6 +8,7 @@ import {
   Building2,
   Eye,
   EyeOff,
+  KeyRound,
   Lock,
   Mail,
   Phone,
@@ -43,6 +44,7 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
     phone: "",
     password: "",
     business: "",
+    signupToken: "",
   });
 
   const set = (key: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
@@ -88,6 +90,9 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
           phone: form.phone,
           password: form.password,
           business: form.business,
+          ...(form.signupToken.trim()
+            ? { signupToken: form.signupToken.trim() }
+            : {}),
         });
       }
       emitNavigationStart();
@@ -166,12 +171,30 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
           </Field>
 
           {role === "funder" ? (
-            <Field label="Business / brand name">
-              <div className="relative">
-                <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input type="text" value={form.business} onChange={set("business")} placeholder="Spaceship Collective" className={`${inputClass} pl-9`} />
-              </div>
-            </Field>
+            <>
+              <Field label="Business / brand name">
+                <div className="relative">
+                  <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input type="text" value={form.business} onChange={set("business")} placeholder="Spaceship Collective" className={`${inputClass} pl-9`} />
+                </div>
+              </Field>
+              <Field label="Signup token (optional)">
+                <div className="relative">
+                  <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={form.signupToken}
+                    onChange={set("signupToken")}
+                    placeholder="KC-XXXXXXXX"
+                    className={`${inputClass} pl-9 font-mono uppercase`}
+                    autoComplete="off"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1.5">
+                  Have a studio invite token? Enter it to receive wallet credit on signup.
+                </p>
+              </Field>
+            </>
           ) : (
             <div className="space-y-4 pt-1 border-t border-border">
               <p className="text-xs font-mono text-accent uppercase tracking-widest pt-3">Payout details</p>

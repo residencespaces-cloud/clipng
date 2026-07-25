@@ -7,6 +7,7 @@ import { hashToken, issueTokens } from "@/server/auth";
 import { createTransferRecipient, resolveAccountNumber } from "@/server/paystack";
 import { isValidEmail, isValidPassword, isValidPhone } from "@/server/validation";
 import { notifyUser } from "@/server/services/notifications.service";
+import { redeemSignupToken } from "@/server/services/signup-tokens.service";
 
 async function verifyAndCreateRecipient(
   bankCode: string,
@@ -101,10 +102,20 @@ export async function signupFunder(body: {
   phone: string;
   password: string;
   business: string;
+  signupToken?: string;
 }) {
   if (!isValidEmail(body.email)) throw new Error("Enter a valid email address.");
   if (!isValidPassword(body.password)) throw new Error("Password must be at least 8 characters.");
   if (!isValidPhone(body.phone)) throw new Error("Enter a valid phone number.");
+
+  const tokenCode = body.signupToken?.trim();
+  if (tokenCode) {
+    const existing = await prisma.signupToken.findUnique({
+      where: { code: tokenCode.toUpperCase() },
+    });
+    if (!existing) throw new Error("Invalid signup token.");
+    if (existing.usedByUserId) throw new Error("This signup token has already been used.");
+  }
 
   const passwordHash = await bcrypt.hash(body.password, 12);
   try {
@@ -121,11 +132,29 @@ export async function signupFunder(body: {
           },
         },
       },
+      include: { funderProfile: { include: { wallet: true } } },
     });
+
+    const walletId = user.funderProfile?.wallet?.id;
+    if (tokenCode && walletId) {
+      try {
+        await redeemSignupToken({
+          code: tokenCode,
+          userId: user.id,
+          walletId,
+        });
+      } catch (redeemError) {
+        await prisma.user.delete({ where: { id: user.id } }).catch(() => undefined);
+        throw redeemError;
+      }
+    }
+
     await notifyUser(
       user.id,
       "Welcome to KudiClip",
-      `Hi ${body.business}, your funder account is ready. Fund your wallet and launch your first campaign.`,
+      tokenCode
+        ? `Hi ${body.business}, your funder account is ready and your signup credit has been added to your wallet.`
+        : `Hi ${body.business}, your funder account is ready. Fund your wallet and launch your first campaign.`,
     );
     return issueTokens(user);
   } catch (e) {

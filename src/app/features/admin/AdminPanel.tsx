@@ -19,6 +19,7 @@ import { AllCampaigns } from "./AllCampaigns";
 import { ApprovedClips } from "./ApprovedClips";
 import { AuditLogs } from "./AuditLogs";
 import { PendingReview } from "./PendingReview";
+import { SignupTokens } from "./SignupTokens";
 import { ViewVerification } from "./ViewVerification";
 
 const FEE_PERCENT = Number(process.env.NEXT_PUBLIC_PLATFORM_FEE_PERCENT ?? 20);
@@ -123,6 +124,7 @@ export function AdminPanel() {
     { key: "approved", label: "Ready for Payout" },
     { key: "all-campaigns", label: "All Campaigns" },
     { key: "payouts", label: "Payouts" },
+    { key: "signup-tokens", label: "Signup Tokens" },
     { key: "audit-logs", label: "Audit Logs" },
   ];
 
@@ -228,6 +230,7 @@ export function AdminPanel() {
         )}
         {tab === "all-campaigns" && <AllCampaigns />}
         {tab === "payouts" && <AdminPayouts />}
+        {tab === "signup-tokens" && <SignupTokens />}
         {tab === "audit-logs" && <AuditLogs />}
       </div>
     </div>

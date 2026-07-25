@@ -49,6 +49,7 @@ enum WalletLedgerType {
   payout_debit
   refund
   adjustment
+  signup_credit
 }
 
 enum PayoutStatus {
@@ -88,6 +89,8 @@ model User {
   viewVerifications ViewVerification[]      @relation("Verifier")
   auditLogs         AuditLog[]
   notifications     Notification[]
+  signupTokensCreated SignupToken[]         @relation("SignupTokenCreator")
+  signupTokenRedeemed SignupToken?          @relation("SignupTokenRedeemer")
 
   @@map("users")
 }
@@ -369,4 +372,21 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model SignupToken {
+  id               String    @id @default(uuid())
+  code             String    @unique
+  createdFor       String    @map("created_for")
+  creditKobo       BigInt    @map("credit_kobo")
+  createdByAdminId String?   @map("created_by_admin_id")
+  usedByUserId     String?   @unique @map("used_by_user_id")
+  usedAt           DateTime? @map("used_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  createdByAdmin User? @relation("SignupTokenCreator", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  usedByUser     User? @relation("SignupTokenRedeemer", fields: [usedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("signup_tokens")
 }
