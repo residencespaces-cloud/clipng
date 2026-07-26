@@ -1,7 +1,7 @@
 export type AuthRole = "clipper" | "funder";
 export type ClipperTab = "overview" | "campaigns" | "clips" | "earnings" | "settings";
 export type FunderTab = "overview" | "campaigns" | "create" | "billing" | "settings";
-export type AdminTab = "pending" | "view-verify" | "approved" | "all-campaigns" | "payouts" | "audit-logs" | "signup-tokens";
+export type AdminTab = "pending" | "view-tracking" | "approved" | "all-campaigns" | "payouts" | "audit-logs" | "signup-tokens";
 export type WalletTransactionType = "top_up" | "campaign_escrow" | "escrow_release" | "refund" | "adjustment" | "signup_credit";
 export type CreateStep = 1 | 2 | 3;
 export type SourceType = "video" | "vod";
@@ -39,16 +39,32 @@ export interface PendingClip extends PendingClipRow {
   codeVerified: boolean;
 }
 
-export interface AwaitingViewsClip extends PendingClipRow {
+/** An approved clip whose view count keeps being topped up while its campaign runs. */
+export interface TrackedClip extends PendingClipRow {
   approvedDate: string;
+  /** Draft value of the admin's view input, prefilled with the credited total. */
   viewCount: string;
+  viewsVerified: number;
+  earningsAccrued: number;
+  paidOut: number;
+  outstanding: number;
+  updateCount: number;
+  lastUpdated: string;
+  cpm: number;
+  campaignStatus: string;
+  campaignRemaining: number;
+  trackingOpen: boolean;
+  codeVerified?: boolean;
 }
 
+/** One queued payout slice for a clip — a clip may have several over its life. */
 export interface ApprovedClip extends PendingClipRow {
+  submissionId: string;
   viewsVerified: number;
   approvedDate: string;
   earningsDue?: number;
   payoutStatus?: string;
+  failureReason?: string | null;
 }
 
 export interface WalletTransaction {

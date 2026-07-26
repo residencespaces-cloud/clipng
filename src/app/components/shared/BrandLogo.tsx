@@ -20,9 +20,8 @@ export function BrandLogo({
   compact?: boolean;
 }) {
   const height = SIZES[size].height;
-  const clipHeight = compact ? 56 : height;
-  // Square SVG has empty padding; width ≈ height, wordmark sits in the center band
-  const clipWidth = compact ? Math.round(height * 0.95) : undefined;
+  const clipHeight = compact ? 44 : height;
+  const clipWidth = compact ? Math.min(Math.round(height * 0.72), 128) : undefined;
 
   const img = (
     // eslint-disable-next-line @next/next/no-img-element
@@ -30,9 +29,10 @@ export function BrandLogo({
       src="/kudiclip.svg"
       alt="KudiClip"
       height={height}
-      className={`w-auto max-w-none object-contain object-center ${className}`.trim()}
+      className={`w-auto object-contain object-center ${compact ? "max-w-none" : "max-w-full"} ${className}`.trim()}
       style={{
-        height,
+        height: compact ? height : undefined,
+        maxHeight: height,
         width: "auto",
         ...(compact
           ? { position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)" }
@@ -43,18 +43,20 @@ export function BrandLogo({
 
   const inner = compact ? (
     <span
-      className="relative inline-block overflow-hidden shrink-0"
+      className="relative inline-block overflow-hidden shrink-0 max-w-[40vw] sm:max-w-none"
       style={{ height: clipHeight, width: clipWidth }}
     >
       {img}
     </span>
   ) : (
-    img
+    <span className="inline-flex items-center max-w-[min(100%,220px)] sm:max-w-none overflow-hidden">
+      {img}
+    </span>
   );
 
   if (href === null) return inner;
   return (
-    <Link href={href ?? "/"} className="inline-flex items-center shrink-0" aria-label="KudiClip home">
+    <Link href={href ?? "/"} className="inline-flex items-center shrink-0 min-w-0" aria-label="KudiClip home">
       {inner}
     </Link>
   );

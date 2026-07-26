@@ -50,11 +50,12 @@ async function refreshAccessToken(): Promise<string | null> {
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const tokens = getTokens();
   const headers = new Headers(init.headers);
-  if (!headers.has('Content-Type') && init.body) {
-    headers.set('Content-Type', 'application/json');
+  const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
+  if (!headers.has("Content-Type") && init.body && !isFormData) {
+    headers.set("Content-Type", "application/json");
   }
   if (tokens?.accessToken) {
-    headers.set('Authorization', `Bearer ${tokens.accessToken}`);
+    headers.set("Authorization", `Bearer ${tokens.accessToken}`);
   }
 
   let res = await fetch(`${API_BASE}${path}`, { ...init, headers });
@@ -62,7 +63,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   if (res.status === 401 && tokens?.refreshToken) {
     const newAccess = await refreshAccessToken();
     if (newAccess) {
-      headers.set('Authorization', `Bearer ${newAccess}`);
+      headers.set("Authorization", `Bearer ${newAccess}`);
       res = await fetch(`${API_BASE}${path}`, { ...init, headers });
     }
   }
@@ -142,6 +143,13 @@ export const api = {
     join: (id: string) =>
       apiFetch<{ verificationCode: string }>(`/campaigns/${id}/join`, { method: 'POST' }),
   },
+  uploads: {
+    thumbnail: (file: File) => {
+      const body = new FormData();
+      body.append('file', file);
+      return apiFetch<{ url: string }>('/uploads/thumbnail', { method: 'POST', body });
+    },
+  },
   wallet: {
     balance: () => apiFetch<{ balance: number; escrow: number }>('/wallet'),
     transactions: () => apiFetch<import('@/app/types').WalletTransaction[]>('/wallet/transactions'),
@@ -158,9 +166,10 @@ export const api = {
     earnings: () => apiFetch<import('@/app/types').EarningsSummary>('/earnings/me'),
   },
   admin: {
-    pending: () => apiFetch('/admin/submissions/pending'),
-    awaitingViews: () => apiFetch('/admin/submissions/awaiting-views'),
-    readyForPayout: () => apiFetch('/admin/payouts/ready'),
+    pending: () => apiFetch<import('@/app/types').PendingClip[]>('/admin/submissions/pending'),
+    trackedClips: () =>
+      apiFetch<import('@/app/types').TrackedClip[]>('/admin/submissions/awaiting-views'),
+    readyForPayout: () => apiFetch<import('@/app/types').ApprovedClip[]>('/admin/payouts/ready'),
     approve: (id: string, codeVerified: boolean) =>
       apiFetch(`/admin/submissions/${id}/approve`, {
         method: 'POST',
@@ -171,13 +180,19 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ reason }),
       }),
-    verifyViews: (id: string, viewCount: number) =>
-      apiFetch(`/admin/submissions/${id}/verify-views`, {
+    updateViews: (submissionId: string, viewCount: number) =>
+      apiFetch<{
+        creditedViews: number;
+        totalViews: number;
+        uncreditedViews: number;
+        cappedByBudget: boolean;
+        earnings: number;
+      }>(`/admin/submissions/${submissionId}/verify-views`, {
         method: 'POST',
         body: JSON.stringify({ viewCount }),
       }),
-    triggerPayout: (id: string) =>
-      apiFetch(`/admin/payouts/${id}/trigger`, { method: 'POST' }),
+    triggerPayout: (payoutItemId: string) =>
+      apiFetch(`/admin/payouts/${payoutItemId}/trigger`, { method: 'POST' }),
     campaigns: () => apiFetch<import('@/app/types').Campaign[]>('/admin/campaigns'),
     payouts: () => apiFetch<import('@/app/types').Payout[]>('/admin/payouts'),
     auditLogs: () => apiFetch<import('@/app/types').AuditLog[]>('/admin/audit-logs'),

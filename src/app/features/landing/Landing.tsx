@@ -5,16 +5,22 @@ import { LandingHero } from "./LandingHero";
 import { LandingNav } from "./LandingNav";
 import { LiveCampaigns } from "./LiveCampaigns";
 import { MoneyMath } from "./MoneyMath";
+import type { Campaign } from "@/app/types";
 
-export function Landing() {
+export function Landing({ campaigns = [] }: { campaigns?: Campaign[] }) {
   return (
-    <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div
+      className="min-h-screen bg-background text-foreground"
+      style={{ fontFamily: "var(--font-plus-jakarta), 'Plus Jakarta Sans', sans-serif" }}
+    >
       <LandingNav />
-      <LandingHero />
-      <HowItWorks />
-      <CreatorBenefits />
-      <LiveCampaigns />
-      <MoneyMath />
+      <main>
+        <LandingHero campaigns={campaigns} />
+        <HowItWorks />
+        <CreatorBenefits />
+        <LiveCampaigns campaigns={campaigns} />
+        <MoneyMath />
+      </main>
       <LandingFooter />
     </div>
   );

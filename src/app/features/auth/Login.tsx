@@ -45,7 +45,7 @@ export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
       <div className="w-full max-w-md">
         <div className="mb-8">
           <p className="text-primary text-xs font-mono uppercase tracking-widest mb-2">Welcome back</p>
-          <h1 className="text-5xl font-black uppercase leading-none" style={{ fontFamily: "'Big Shoulders Display', sans-serif" }}>
+          <h1 className="text-4xl sm:text-5xl font-black uppercase leading-none" style={{ fontFamily: "'Big Shoulders Display', sans-serif" }}>
             Log In
           </h1>
           <p className="text-sm text-muted-foreground mt-3">
@@ -53,7 +53,7 @@ export function Login({ initialRole = "clipper" }: { initialRole?: AuthRole }) {
           </p>
         </div>
 
-        <form onSubmit={submit} className="bg-card border border-border rounded-xl p-6 space-y-5">
+        <form onSubmit={submit} className="bg-card border border-border rounded-xl p-4 sm:p-6 space-y-5">
           <div>
             <p className="text-xs text-muted-foreground mb-2">I am a</p>
             <RolePicker role={role} onChange={setRole} />

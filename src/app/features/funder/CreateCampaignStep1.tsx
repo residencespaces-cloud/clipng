@@ -1,4 +1,9 @@
-import type { Dispatch, SetStateAction } from "react";
+"use client";
+
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { ImagePlus, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
+import { api } from "@/app/lib/api/client";
 import type { CreateCampaignForm, CreateStep } from "@/app/types";
 
 export function CreateCampaignStep1({
@@ -12,11 +17,35 @@ export function CreateCampaignStep1({
   togglePlatform: (p: string) => void;
   setCreateStep: (step: CreateStep) => void;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
   const canContinue =
     form.name.trim() &&
     form.description.trim() &&
     form.assetUrl.trim() &&
-    form.platforms.length > 0;
+    form.imageUrl.trim() &&
+    form.platforms.length > 0 &&
+    !uploading;
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { url } = await api.uploads.thumbnail(file);
+      setForm((f) => ({ ...f, imageUrl: url }));
+      toast.success("Thumbnail uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const clearThumbnail = () => {
+    setForm((f) => ({ ...f, imageUrl: "" }));
+  };
 
   return (
     <>
@@ -69,16 +98,52 @@ export function CreateCampaignStep1({
         </div>
         <div>
           <label className="text-xs text-muted-foreground block mb-1.5">
-            Campaign Thumbnail URL
-            <span className="text-muted-foreground/60 ml-1">(optional)</span>
+            Campaign Thumbnail <span className="text-red-400">*</span>
           </label>
           <input
-            type="url"
-            placeholder="https://example.com/image.jpg"
-            value={form.imageUrl}
-            onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-            className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(e) => onFile(e.target.files?.[0])}
           />
+          {form.imageUrl ? (
+            <div className="relative rounded-lg border border-border overflow-hidden bg-secondary/40">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={form.imageUrl} alt="Campaign thumbnail" className="w-full h-40 object-cover" />
+              <button
+                type="button"
+                onClick={clearThumbnail}
+                className="absolute top-2 right-2 p-1.5 rounded bg-black/60 text-white hover:bg-black/80"
+                aria-label="Remove thumbnail"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              className="w-full h-40 rounded-lg border border-dashed border-border bg-secondary/30 hover:border-primary/40 hover:bg-secondary/50 transition-colors flex flex-col items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 size={22} className="animate-spin text-primary" />
+                  <span className="text-xs text-muted-foreground">Uploading…</span>
+                </>
+              ) : (
+                <>
+                  <ImagePlus size={22} className="text-muted-foreground" />
+                  <span className="text-sm font-medium">Upload thumbnail</span>
+                  <span className="text-xs text-muted-foreground">JPG, PNG, WebP or GIF · max 2MB</span>
+                </>
+              )}
+            </button>
+          )}
+          {!form.imageUrl && (
+            <p className="text-[11px] text-muted-foreground mt-1.5">Required — shown on campaign cards for clippers.</p>
+          )}
         </div>
         <div>
           <label className="text-xs text-muted-foreground block mb-1.5">

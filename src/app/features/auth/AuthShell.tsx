@@ -17,16 +17,16 @@ export function AuthShell({
       </div>
 
       <nav className="relative z-10 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-          <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft size={14} />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors min-w-0">
+            <ArrowLeft size={14} className="shrink-0" />
             <BrandLogo size="md" href={null} />
           </button>
           <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Auth</span>
         </div>
       </nav>
 
-      <div className="relative z-10 flex items-center justify-center px-6 py-12 min-h-[calc(100vh-3.5rem)]">
+      <div className="relative z-10 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12 min-h-[calc(100vh-3.5rem)]">
         {children}
       </div>
     </div>

@@ -34,5 +34,9 @@ pnpm-debug.log*
 .env
 .env*.local
 
+# uploaded campaign thumbnails (local)
+/public/uploads/campaigns/*
+!/public/uploads/campaigns/.gitkeep
+
 # typescript
 *.tsbuildinfo

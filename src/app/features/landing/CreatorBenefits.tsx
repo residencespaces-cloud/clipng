@@ -3,16 +3,19 @@ import { ArrowUpRight, Podcast, Target, TrendingUp } from "lucide-react";
 
 export function CreatorBenefits() {
   return (
-    <section id="benefits" className="py-20 px-6 border-t border-border">
+    <section id="benefits" className="py-16 sm:py-20 px-4 sm:px-6 border-t border-border">
       <div className="max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-10 items-center">
-          <div>
+        <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-10 items-center">
+          <div className="min-w-0">
             <p className="text-accent text-xs font-mono uppercase tracking-widest mb-2">For creators, streamers & brands</p>
-            <h2 className="text-5xl font-black uppercase leading-none mb-5" style={{ fontFamily: "'Big Shoulders Display', sans-serif" }}>
+            <h2
+              className="text-3xl sm:text-4xl md:text-5xl font-black uppercase leading-none mb-5"
+              style={{ fontFamily: "var(--font-big-shoulders), 'Big Shoulders Display', sans-serif" }}
+            >
               Make your content<br />
               <span className="text-primary">travel further.</span>
             </h2>
-            <p className="text-muted-foreground max-w-md leading-relaxed">
+            <p className="text-muted-foreground max-w-md leading-relaxed text-sm sm:text-base">
               Turn one podcast, stream, music video, or campaign into dozens of short-form moments—shared by creators who already understand the culture.
             </p>
             <Link

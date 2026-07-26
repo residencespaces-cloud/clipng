@@ -11,8 +11,8 @@ import { BrandLogo } from "@/app/components/shared/BrandLogo";
 import type {
   AdminTab,
   ApprovedClip,
-  AwaitingViewsClip,
   PendingClip,
+  TrackedClip,
 } from "@/app/types";
 import { AdminPayouts } from "./AdminPayouts";
 import { AllCampaigns } from "./AllCampaigns";
@@ -20,7 +20,7 @@ import { ApprovedClips } from "./ApprovedClips";
 import { AuditLogs } from "./AuditLogs";
 import { PendingReview } from "./PendingReview";
 import { SignupTokens } from "./SignupTokens";
-import { ViewVerification } from "./ViewVerification";
+import { ViewTracking } from "./ViewTracking";
 
 const FEE_PERCENT = Number(process.env.NEXT_PUBLIC_PLATFORM_FEE_PERCENT ?? 20);
 
@@ -28,7 +28,7 @@ export function AdminPanel() {
   const { logout } = useAuth();
   const [tab, setTab] = useState<AdminTab>("pending");
   const [pendingClips, setPendingClips] = useState<PendingClip[]>([]);
-  const [awaitingViews, setAwaitingViews] = useState<AwaitingViewsClip[]>([]);
+  const [trackedClips, setTrackedClips] = useState<TrackedClip[]>([]);
   const [readyForPayout, setReadyForPayout] = useState<ApprovedClip[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
@@ -37,13 +37,13 @@ export function AdminPanel() {
 
   const refresh = useCallback(async () => {
     try {
-      const [pending, awaiting, ready] = await Promise.all([
-        api.admin.pending() as Promise<PendingClip[]>,
-        api.admin.awaitingViews() as Promise<AwaitingViewsClip[]>,
-        api.admin.readyForPayout() as Promise<ApprovedClip[]>,
+      const [pending, tracked, ready] = await Promise.all([
+        api.admin.pending(),
+        api.admin.trackedClips(),
+        api.admin.readyForPayout(),
       ]);
       setPendingClips(pending);
-      setAwaitingViews(awaiting.map((c) => ({ ...c, viewCount: c.viewCount ?? "" })));
+      setTrackedClips(tracked.map((c) => ({ ...c, viewCount: c.viewCount ?? "" })));
       setReadyForPayout(ready);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load admin data");
@@ -84,17 +84,24 @@ export function AdminPanel() {
     }
   };
 
-  const confirmViews = async (id: string) => {
-    const clip = awaitingViews.find((c) => c.id === id);
-    const views = parseInt(clip?.viewCount ?? "") || 0;
-    if (!clip || views <= 0) return;
+  const updateViews = async (id: string) => {
+    const clip = trackedClips.find((c) => c.id === id);
+    const views = parseInt(clip?.viewCount ?? "", 10) || 0;
+    if (!clip || views <= clip.viewsVerified) return;
     setActionId(id);
     try {
-      await api.admin.verifyViews(id, views);
-      toast.success("Views confirmed");
+      const result = await api.admin.updateViews(id, views);
+      toast.success(
+        `${result.creditedViews.toLocaleString()} new views credited — ₦${result.earnings.toLocaleString()} queued for payout`,
+      );
+      if (result.cappedByBudget) {
+        toast.warning(
+          `Campaign budget ran out. ${result.uncreditedViews.toLocaleString()} views could not be paid.`,
+        );
+      }
       await refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Verification failed");
+      toast.error(e instanceof Error ? e.message : "View update failed");
     } finally {
       setActionId(null);
     }
@@ -120,7 +127,7 @@ export function AdminPanel() {
 
   const adminTabs: { key: AdminTab; label: string }[] = [
     { key: "pending", label: "Pending Review" },
-    { key: "view-verify", label: "View Verification" },
+    { key: "view-tracking", label: "View Tracking" },
     { key: "approved", label: "Ready for Payout" },
     { key: "all-campaigns", label: "All Campaigns" },
     { key: "payouts", label: "Payouts" },
@@ -132,39 +139,39 @@ export function AdminPanel() {
 
   return (
     <div className="min-h-screen bg-background text-foreground" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      <header className="border-b border-border px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <header className="border-b border-border px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <BrandLogo size="md" href="/" />
-          <span className="text-xs font-mono bg-accent/15 text-accent border border-accent/20 px-2 py-0.5 rounded">ADMIN</span>
+          <span className="text-xs font-mono bg-accent/15 text-accent border border-accent/20 px-2 py-0.5 rounded shrink-0">ADMIN</span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground font-mono">
             <span>{pendingClips.length} pending</span>
             <span className="text-border">·</span>
-            <span>{awaitingViews.length} awaiting views</span>
+            <span>{trackedClips.filter((c) => c.trackingOpen).length} tracking</span>
           </div>
           <button onClick={refresh} className="p-1.5 text-muted-foreground hover:text-foreground" aria-label="Refresh">
             <RefreshCw size={14} />
           </button>
           <button
             onClick={handleLogout}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground border border-border rounded hover:text-red-400 hover:border-red-500/30 transition-colors"
+            className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1.5 text-xs text-muted-foreground border border-border rounded hover:text-red-400 hover:border-red-500/30 transition-colors"
           >
             <LogOut size={14} />
-            Logout
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </header>
 
-      <div className="flex border-b border-border px-6 overflow-x-auto">
+      <div className="flex border-b border-border px-4 sm:px-6 overflow-x-auto">
         {adminTabs.map((t) => {
           const count =
             t.key === "pending"
               ? pendingClips.length
-              : t.key === "view-verify"
-                ? awaitingViews.length
+              : t.key === "view-tracking"
+                ? trackedClips.filter((c) => c.trackingOpen).length
                 : t.key === "approved"
-                  ? readyForPayout.filter((c) => c.payoutStatus === "Pending").length
+                  ? readyForPayout.length
                   : 0;
           return (
             <button
@@ -181,7 +188,7 @@ export function AdminPanel() {
         })}
       </div>
 
-      <div className="p-6">
+      <div className="p-4 sm:p-6 overflow-x-auto">
         {tab === "pending" && (
           <PendingReview
             clips={pendingClips}
@@ -208,13 +215,14 @@ export function AdminPanel() {
             }
           />
         )}
-        {tab === "view-verify" && (
-          <ViewVerification
-            clips={awaitingViews}
+        {tab === "view-tracking" && (
+          <ViewTracking
+            clips={trackedClips}
             actionId={actionId}
-            onConfirmViews={confirmViews}
+            feePercent={FEE_PERCENT}
+            onUpdateViews={updateViews}
             onViewCountChange={(id, value) =>
-              setAwaitingViews((prev) =>
+              setTrackedClips((prev) =>
                 prev.map((cl) => (cl.id === id ? { ...cl, viewCount: value } : cl)),
               )
             }

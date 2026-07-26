@@ -87,13 +87,13 @@ export function DashboardShell<T extends string>({
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="flex items-center gap-4 px-6 h-14 border-b border-border shrink-0">
+        <header className="flex items-center gap-4 px-4 sm:px-6 h-14 border-b border-border shrink-0">
           <button className="lg:hidden text-muted-foreground" onClick={onSidebarOpen}>
             <Menu size={18} />
           </button>
-          <h2 className="text-sm font-semibold">{items.find((i) => i.key === tab)?.label}</h2>
+          <h2 className="text-sm font-semibold truncate">{items.find((i) => i.key === tab)?.label}</h2>
         </header>
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">{children}</div>
       </main>
     </div>
   );

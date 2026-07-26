@@ -238,9 +238,9 @@ model ClipSubmission {
   campaign          Campaign              @relation(fields: [campaignId], references: [id])
   clipper           User                  @relation("ClipperSubmissions", fields: [clipperId], references: [id])
   review            SubmissionReview?
-  viewVerification  ViewVerification?
-  earningEntry      EarningEntry?
-  payoutItem        PayoutItem?
+  viewVerifications ViewVerification[]
+  earningEntries    EarningEntry[]
+  payoutItems       PayoutItem[]
 
   @@unique([postUrl])
   @@index([status])
@@ -264,23 +264,33 @@ model SubmissionReview {
   @@map("submission_reviews")
 }
 
+/// One row per admin view update. `viewCount` is the cumulative credited total
+/// after the update; `deltaViews` and the kobo columns are what this update added.
 model ViewVerification {
-  id           String   @id @default(uuid())
-  submissionId String   @unique @map("submission_id")
-  verifierId   String   @map("verifier_id")
-  viewCount    Int      @map("view_count")
-  evidenceUrl  String?  @map("evidence_url")
-  verifiedAt   DateTime @default(now()) @map("verified_at")
+  id            String   @id @default(uuid())
+  submissionId  String   @map("submission_id")
+  verifierId    String   @map("verifier_id")
+  viewCount     Int      @map("view_count")
+  previousViews Int      @default(0) @map("previous_views")
+  observedViews Int?     @map("observed_views")
+  deltaViews    Int      @default(0) @map("delta_views")
+  grossKobo     Int      @default(0) @map("gross_kobo")
+  clipperKobo   Int      @default(0) @map("clipper_kobo")
+  platformKobo  Int      @default(0) @map("platform_kobo")
+  cappedByBudget Boolean @default(false) @map("capped_by_budget")
+  evidenceUrl   String?  @map("evidence_url")
+  verifiedAt    DateTime @default(now()) @map("verified_at")
 
   submission ClipSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   verifier   User           @relation("Verifier", fields: [verifierId], references: [id])
 
+  @@index([submissionId])
   @@map("view_verifications")
 }
 
 model EarningEntry {
   id           String   @id @default(uuid())
-  submissionId String   @unique @map("submission_id")
+  submissionId String   @map("submission_id")
   clipperId    String   @map("clipper_id")
   campaignId   String   @map("campaign_id")
   grossKobo    Int      @map("gross_kobo")
@@ -291,6 +301,7 @@ model EarningEntry {
   submission ClipSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@index([clipperId])
+  @@index([submissionId])
   @@map("earning_entries")
 }
 
@@ -310,7 +321,7 @@ model PayoutBatch {
 model PayoutItem {
   id              String       @id @default(uuid())
   batchId         String?      @map("batch_id")
-  submissionId    String       @unique @map("submission_id")
+  submissionId    String       @map("submission_id")
   clipperId       String       @map("clipper_id")
   amountKobo      Int          @map("amount_kobo")
   status          PayoutStatus @default(pending)
@@ -324,6 +335,7 @@ model PayoutItem {
 
   @@index([clipperId])
   @@index([status])
+  @@index([submissionId])
   @@map("payout_items")
 }
 

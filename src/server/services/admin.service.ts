@@ -1,9 +1,47 @@
-import { CampaignStatus, PayoutStatus, SubmissionStatus } from "@prisma/client";
+import { CampaignStatus, PayoutStatus, Prisma, SubmissionStatus } from "@prisma/client";
 import { prisma } from "@/server/prisma";
-import { clipperEarningsKobo, koboToNaira } from "@/server/money";
+import { koboToNaira, viewUpdateEarningsKobo } from "@/server/money";
 import { initiateTransfer } from "@/server/paystack";
 import { normalizeStatus } from "@/server/status";
 import { notifyUser } from "@/server/services/notifications.service";
+
+/** Submissions that have cleared review and can still accrue views. */
+const TRACKED_STATUSES: SubmissionStatus[] = [
+  SubmissionStatus.approved_awaiting_views,
+  SubmissionStatus.views_verified,
+  SubmissionStatus.payout_triggered,
+  SubmissionStatus.paid,
+];
+
+/** Campaign states that may still spend budget on new views. */
+const ACCRUING_CAMPAIGN_STATUSES: CampaignStatus[] = [
+  CampaignStatus.active,
+  CampaignStatus.paused,
+];
+
+const PAYABLE_STATUSES: PayoutStatus[] = [PayoutStatus.pending, PayoutStatus.failed];
+
+const sumKobo = <T>(rows: T[], pick: (row: T) => number) =>
+  rows.reduce((total, row) => total + pick(row), 0);
+
+/**
+ * A submission can hold many payout items once views keep climbing, so its
+ * status is derived from the items rather than set directly.
+ */
+async function resolveSubmissionStatus(
+  tx: Prisma.TransactionClient,
+  submissionId: string,
+  fallback: SubmissionStatus,
+): Promise<SubmissionStatus> {
+  const items = await tx.payoutItem.findMany({
+    where: { submissionId },
+    select: { status: true },
+  });
+  if (items.length === 0) return fallback;
+  if (items.some((i) => PAYABLE_STATUSES.includes(i.status))) return SubmissionStatus.views_verified;
+  if (items.some((i) => i.status === PayoutStatus.triggered)) return SubmissionStatus.payout_triggered;
+  return SubmissionStatus.paid;
+}
 
 function mapPendingRow(s: {
   id: string;
@@ -44,47 +82,82 @@ export async function listPending() {
   return rows.map(mapPendingRow);
 }
 
-export async function listAwaitingViews() {
+export async function listTrackedClips() {
   const rows = await prisma.clipSubmission.findMany({
-    where: { status: SubmissionStatus.approved_awaiting_views },
+    where: { status: { in: TRACKED_STATUSES } },
     include: {
       clipper: { include: { clipperProfile: true } },
       campaign: true,
       review: true,
+      payoutItems: true,
+      viewVerifications: { orderBy: { verifiedAt: "desc" }, take: 1 },
+      _count: { select: { viewVerifications: true } },
     },
     orderBy: { submittedAt: "desc" },
   });
-  return rows.map((r) => ({
-    ...mapPendingRow(r),
-    approvedDate: r.review?.reviewedAt.toISOString().slice(0, 10) ?? "",
-    viewCount: "",
-  }));
+
+  return rows.map((r) => {
+    const paidKobo = sumKobo(
+      r.payoutItems.filter((i) => i.status === PayoutStatus.paid),
+      (i) => i.amountKobo,
+    );
+    const outstandingKobo = sumKobo(
+      r.payoutItems.filter((i) => i.status !== PayoutStatus.paid),
+      (i) => i.amountKobo,
+    );
+    const campaignRemaining = Number(r.campaign.remainingKobo);
+    const lastUpdate = r.viewVerifications[0];
+
+    return {
+      ...mapPendingRow(r),
+      approvedDate: r.review?.reviewedAt.toISOString().slice(0, 10) ?? "",
+      viewsVerified: r.viewsVerified ?? 0,
+      viewCount: r.viewsVerified ? String(r.viewsVerified) : "",
+      earningsAccrued: koboToNaira(r.earningsKobo ?? 0),
+      paidOut: koboToNaira(paidKobo),
+      outstanding: koboToNaira(outstandingKobo),
+      updateCount: r._count.viewVerifications,
+      lastUpdated: lastUpdate?.verifiedAt.toISOString().slice(0, 10) ?? "",
+      cpm: koboToNaira(r.campaign.cpmKobo),
+      campaignStatus: normalizeStatus(r.campaign.status),
+      campaignRemaining: koboToNaira(campaignRemaining),
+      trackingOpen:
+        ACCRUING_CAMPAIGN_STATUSES.includes(r.campaign.status) && campaignRemaining > 0,
+    };
+  });
 }
 
 export async function listReadyForPayout() {
-  const rows = await prisma.clipSubmission.findMany({
-    where: { status: SubmissionStatus.views_verified },
+  const items = await prisma.payoutItem.findMany({
+    where: { status: { in: PAYABLE_STATUSES } },
     include: {
-      clipper: { include: { clipperProfile: true } },
-      campaign: true,
-      payoutItem: true,
-      review: true,
+      submission: {
+        include: {
+          campaign: true,
+          review: true,
+          clipper: { include: { clipperProfile: true } },
+        },
+      },
     },
-    orderBy: { submittedAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
-  return rows.map((r) => ({
-    ...mapPendingRow(r),
-    viewsVerified: r.viewsVerified ?? 0,
-    approvedDate: r.review?.reviewedAt?.toISOString().slice(0, 10) ?? "",
-    earningsDue: koboToNaira(r.earningsKobo ?? 0),
-    payoutStatus:
-      r.payoutItem?.status === PayoutStatus.paid
-        ? "Paid"
-        : r.payoutItem?.status === PayoutStatus.triggered
-          ? "Triggered"
-          : r.payoutItem?.status === PayoutStatus.failed
-            ? "Failed"
-            : "Pending",
+
+  return items.map((i) => ({
+    id: i.id,
+    submissionId: i.submissionId,
+    clipper: i.submission.clipper.clipperProfile?.displayName ?? "Unknown",
+    campaign: i.submission.campaign.name,
+    platform: i.submission.platform,
+    link: i.submission.postUrl,
+    verificationCode: i.submission.verificationCode,
+    date: i.createdAt.toISOString().slice(0, 10),
+    views: i.submission.viewsVerified ?? 0,
+    viewsVerified: i.submission.viewsVerified ?? 0,
+    status: normalizeStatus(i.submission.status),
+    approvedDate: i.submission.review?.reviewedAt.toISOString().slice(0, 10) ?? "",
+    earningsDue: koboToNaira(i.amountKobo),
+    payoutStatus: normalizeStatus(i.status),
+    failureReason: i.failureReason,
   }));
 }
 
@@ -179,145 +252,240 @@ export async function rejectSubmission(adminId: string, submissionId: string, re
   return { success: true };
 }
 
-export async function verifyViews(adminId: string, submissionId: string, viewCount: number) {
-  if (!Number.isFinite(viewCount) || viewCount <= 0) {
+/**
+ * Records a new cumulative view total for an approved clip. Each call credits
+ * only the views gained since the last update and queues a payout for the
+ * incremental earnings, so a clip can be paid repeatedly while its campaign
+ * still has budget.
+ */
+export async function updateVerifiedViews(
+  adminId: string,
+  submissionId: string,
+  observedViews: number,
+) {
+  if (!Number.isFinite(observedViews) || observedViews <= 0) {
     throw new Error("View count must be a positive number");
   }
+  const totalObserved = Math.floor(observedViews);
 
   const submission = await prisma.clipSubmission.findUnique({
     where: { id: submissionId },
-    include: { campaign: true },
+    include: { campaign: true, earningEntries: true },
   });
-  if (!submission || submission.status !== SubmissionStatus.approved_awaiting_views) {
-    throw new Error("Submission not awaiting view verification");
+  if (!submission) throw new Error("Submission not found");
+  if (!TRACKED_STATUSES.includes(submission.status)) {
+    throw new Error("Submission must be approved before views can be tracked");
   }
 
-  const platformFee = Number(process.env.PLATFORM_FEE_PERCENT ?? 20);
-  const { gross, clipper, platform } = clipperEarningsKobo(
-    viewCount,
-    submission.campaign.cpmKobo,
-    platformFee,
-  );
-
-  if (gross > Number(submission.campaign.remainingKobo)) {
+  const { campaign } = submission;
+  if (!ACCRUING_CAMPAIGN_STATUSES.includes(campaign.status)) {
     throw new Error(
-      `Gross earnings (₦${koboToNaira(gross)}) exceed campaign remaining budget (₦${koboToNaira(submission.campaign.remainingKobo)}).`,
+      `Campaign is ${normalizeStatus(campaign.status).toLowerCase()} — views can no longer be credited.`,
     );
   }
 
-  const newRemaining = submission.campaign.remainingKobo - BigInt(gross);
-  const campaignUpdate: { remainingKobo: bigint; totalViews: { increment: number }; clipCount: { increment: number }; status?: CampaignStatus } = {
-    remainingKobo: newRemaining,
-    totalViews: { increment: viewCount },
-    clipCount: { increment: 1 },
-  };
-  if (newRemaining <= BigInt(0)) {
-    campaignUpdate.status = CampaignStatus.exhausted;
+  const previousViews = submission.viewsVerified ?? 0;
+  if (totalObserved <= previousViews) {
+    throw new Error(
+      `Enter the latest total views. ${previousViews.toLocaleString()} views are already credited for this clip.`,
+    );
   }
+
+  const remainingKobo = Number(campaign.remainingKobo);
+  if (remainingKobo <= 0) {
+    throw new Error("Campaign budget is exhausted — no further views can be credited.");
+  }
+
+  const accruedGrossKobo = sumKobo(submission.earningEntries, (e) => e.grossKobo);
+  const accruedClipperKobo = sumKobo(submission.earningEntries, (e) => e.clipperKobo);
+
+  const update = viewUpdateEarningsKobo({
+    previousViews,
+    observedViews: totalObserved,
+    accruedGrossKobo,
+    accruedClipperKobo,
+    cpmKobo: campaign.cpmKobo,
+    remainingKobo,
+    platformFeePercent: Number(process.env.PLATFORM_FEE_PERCENT ?? 20),
+  });
+
+  if (update.creditedViews <= 0) {
+    throw new Error(
+      `Campaign has only ₦${koboToNaira(remainingKobo).toLocaleString()} left — not enough to credit more views.`,
+    );
+  }
+
+  const isFirstCredit = previousViews === 0;
+  const newRemaining = campaign.remainingKobo - BigInt(update.deltaGrossKobo);
+  const clampedRemaining = newRemaining > BigInt(0) ? newRemaining : BigInt(0);
 
   await prisma.$transaction(async (tx) => {
     await tx.viewVerification.create({
-      data: { submissionId, verifierId: adminId, viewCount },
-    });
-    await tx.earningEntry.create({
       data: {
         submissionId,
-        clipperId: submission.clipperId,
-        campaignId: submission.campaignId,
-        grossKobo: gross,
-        clipperKobo: clipper,
-        platformKobo: platform,
+        verifierId: adminId,
+        viewCount: update.totalViews,
+        previousViews,
+        observedViews: totalObserved,
+        deltaViews: update.creditedViews,
+        grossKobo: update.deltaGrossKobo,
+        clipperKobo: update.deltaClipperKobo,
+        platformKobo: update.deltaPlatformKobo,
+        cappedByBudget: update.cappedByBudget,
       },
     });
+
+    if (update.deltaGrossKobo > 0) {
+      await tx.earningEntry.create({
+        data: {
+          submissionId,
+          clipperId: submission.clipperId,
+          campaignId: submission.campaignId,
+          grossKobo: update.deltaGrossKobo,
+          clipperKobo: update.deltaClipperKobo,
+          platformKobo: update.deltaPlatformKobo,
+        },
+      });
+    }
+
+    if (update.deltaClipperKobo > 0) {
+      await tx.payoutItem.create({
+        data: {
+          submissionId,
+          clipperId: submission.clipperId,
+          amountKobo: update.deltaClipperKobo,
+          status: PayoutStatus.pending,
+        },
+      });
+    }
+
+    await tx.campaign.update({
+      where: { id: submission.campaignId },
+      data: {
+        remainingKobo: clampedRemaining,
+        totalViews: { increment: update.creditedViews },
+        ...(isFirstCredit ? { clipCount: { increment: 1 } } : {}),
+        ...(clampedRemaining === BigInt(0) ? { status: CampaignStatus.exhausted } : {}),
+      },
+    });
+
     await tx.clipSubmission.update({
       where: { id: submissionId },
       data: {
-        status: SubmissionStatus.views_verified,
-        viewsVerified: viewCount,
-        earningsKobo: clipper,
+        viewsVerified: update.totalViews,
+        earningsKobo: accruedClipperKobo + update.deltaClipperKobo,
+        status: await resolveSubmissionStatus(tx, submissionId, SubmissionStatus.views_verified),
       },
     });
-    await tx.campaign.update({
-      where: { id: submission.campaignId },
-      data: campaignUpdate,
-    });
-    await tx.payoutItem.create({
-      data: {
-        submissionId,
-        clipperId: submission.clipperId,
-        amountKobo: clipper,
-        status: PayoutStatus.pending,
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: adminId,
+      action: "submission.views_updated",
+      entityType: "clip_submission",
+      entityId: submissionId,
+      metadata: {
+        previousViews,
+        observedViews: totalObserved,
+        creditedViews: update.creditedViews,
+        totalViews: update.totalViews,
+        clipperKobo: update.deltaClipperKobo,
+        cappedByBudget: update.cappedByBudget,
       },
-    });
+    },
   });
 
   await notifyUser(
     submission.clipperId,
-    "Views verified — earnings calculated",
-    `Your clip for "${submission.campaign.name}" earned ₦${koboToNaira(clipper).toLocaleString()} based on ${viewCount.toLocaleString()} views.`,
-    { submissionId, viewCount, earnings: clipper },
+    isFirstCredit ? "Views verified — earnings calculated" : "New views credited",
+    `${update.creditedViews.toLocaleString()} new views on your clip for "${campaign.name}" earned you ₦${koboToNaira(update.deltaClipperKobo).toLocaleString()}. Total credited views: ${update.totalViews.toLocaleString()}.`,
+    {
+      submissionId,
+      creditedViews: update.creditedViews,
+      totalViews: update.totalViews,
+      earnings: update.deltaClipperKobo,
+    },
   );
 
-  return { success: true, earnings: koboToNaira(clipper) };
+  return {
+    success: true,
+    creditedViews: update.creditedViews,
+    totalViews: update.totalViews,
+    uncreditedViews: update.uncreditedViews,
+    cappedByBudget: update.cappedByBudget,
+    earnings: koboToNaira(update.deltaClipperKobo),
+  };
 }
 
-export async function triggerPayout(adminId: string, submissionId: string) {
-  const submission = await prisma.clipSubmission.findUnique({
-    where: { id: submissionId },
+export async function triggerPayout(adminId: string, payoutItemId: string) {
+  const item = await prisma.payoutItem.findUnique({
+    where: { id: payoutItemId },
     include: {
-      payoutItem: true,
-      clipper: { include: { clipperProfile: true } },
-      campaign: true,
+      submission: {
+        include: {
+          campaign: true,
+          clipper: { include: { clipperProfile: true } },
+        },
+      },
     },
   });
-  if (!submission || submission.status !== SubmissionStatus.views_verified || !submission.payoutItem) {
-    throw new Error("Submission not ready for payout");
+  if (!item) throw new Error("Payout not found");
+  if (!PAYABLE_STATUSES.includes(item.status)) {
+    throw new Error(`Payout already ${normalizeStatus(item.status).toLowerCase()}`);
   }
+  if (item.amountKobo <= 0) throw new Error("Payout amount is zero");
 
-  const recipientCode = submission.clipper.clipperProfile?.paystackRecipientCode;
+  const recipientCode = item.submission.clipper.clipperProfile?.paystackRecipientCode;
   if (!recipientCode) {
     throw new Error("Clipper has no Paystack recipient. They must update bank details.");
   }
 
-  const reference = `payout_${submission.payoutItem.id}_${Date.now()}`;
+  const reference = `payout_${item.id}_${Date.now()}`;
   let paystackRef = reference;
 
   if (process.env.PAYSTACK_SECRET_KEY) {
     const transfer = await initiateTransfer({
-      amountKobo: submission.payoutItem.amountKobo,
+      amountKobo: item.amountKobo,
       recipientCode,
       reference,
-      reason: `KudiClip payout — ${submission.campaign.name}`,
+      reason: `KudiClip payout — ${item.submission.campaign.name}`,
     });
     paystackRef = transfer.reference;
   }
 
-  await prisma.$transaction([
-    prisma.payoutItem.update({
-      where: { id: submission.payoutItem.id },
-      data: { status: PayoutStatus.triggered, paystackRef },
-    }),
-    prisma.clipSubmission.update({
-      where: { id: submissionId },
-      data: { status: SubmissionStatus.payout_triggered },
-    }),
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.payoutItem.update({
+      where: { id: item.id },
+      data: { status: PayoutStatus.triggered, paystackRef, failureReason: null },
+    });
+    await tx.clipSubmission.update({
+      where: { id: item.submissionId },
+      data: {
+        status: await resolveSubmissionStatus(
+          tx,
+          item.submissionId,
+          SubmissionStatus.payout_triggered,
+        ),
+      },
+    });
+  });
 
   await prisma.auditLog.create({
     data: {
       actorId: adminId,
       action: "payout.triggered",
-      entityType: "clip_submission",
-      entityId: submissionId,
-      metadata: { reference: paystackRef },
+      entityType: "payout_item",
+      entityId: item.id,
+      metadata: { reference: paystackRef, submissionId: item.submissionId },
     },
   });
 
   await notifyUser(
-    submission.clipperId,
+    item.clipperId,
     "Payout triggered",
-    `Your payout of ₦${koboToNaira(submission.payoutItem.amountKobo).toLocaleString()} for "${submission.campaign.name}" has been initiated.`,
-    { submissionId, reference: paystackRef },
+    `Your payout of ₦${koboToNaira(item.amountKobo).toLocaleString()} for "${item.submission.campaign.name}" has been initiated.`,
+    { payoutItemId: item.id, submissionId: item.submissionId, reference: paystackRef },
   );
 
   return { success: true, status: "Triggered", reference: paystackRef };
@@ -330,16 +498,18 @@ export async function handleTransferSuccess(reference: string) {
   });
   if (!item || item.status === PayoutStatus.paid) return;
 
-  await prisma.$transaction([
-    prisma.payoutItem.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.payoutItem.update({
       where: { id: item.id },
       data: { status: PayoutStatus.paid },
-    }),
-    prisma.clipSubmission.update({
+    });
+    await tx.clipSubmission.update({
       where: { id: item.submissionId },
-      data: { status: SubmissionStatus.paid },
-    }),
-  ]);
+      data: {
+        status: await resolveSubmissionStatus(tx, item.submissionId, SubmissionStatus.paid),
+      },
+    });
+  });
 
   await notifyUser(
     item.clipperId,
@@ -353,9 +523,21 @@ export async function handleTransferFailed(reference: string, reason?: string) {
   const item = await prisma.payoutItem.findFirst({ where: { paystackRef: reference } });
   if (!item || item.status === PayoutStatus.failed) return;
 
-  await prisma.payoutItem.update({
-    where: { id: item.id },
-    data: { status: PayoutStatus.failed, failureReason: reason ?? "Transfer failed" },
+  await prisma.$transaction(async (tx) => {
+    await tx.payoutItem.update({
+      where: { id: item.id },
+      data: { status: PayoutStatus.failed, failureReason: reason ?? "Transfer failed" },
+    });
+    await tx.clipSubmission.update({
+      where: { id: item.submissionId },
+      data: {
+        status: await resolveSubmissionStatus(
+          tx,
+          item.submissionId,
+          SubmissionStatus.views_verified,
+        ),
+      },
+    });
   });
 
   await notifyUser(

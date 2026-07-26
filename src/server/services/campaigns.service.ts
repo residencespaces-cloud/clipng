@@ -2,6 +2,7 @@ import { CampaignStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { koboToNaira, nairaToKobo, generateVerificationCode } from "@/server/money";
 import { normalizeStatus } from "@/server/status";
+import { isValidImageRef } from "@/server/uploads";
 import { isValidUrl } from "@/server/validation";
 import { notifyUser } from "@/server/services/notifications.service";
 import { reserveEscrowForCampaign } from "./wallet.service";
@@ -53,7 +54,7 @@ export async function createCampaign(
     budget: number;
     start?: string;
     end?: string;
-    imageUrl?: string;
+    imageUrl: string;
   },
 ) {
   const profile = await prisma.funderProfile.findUnique({ where: { userId } });
@@ -64,8 +65,9 @@ export async function createCampaign(
   if (!dto.platforms?.length) throw new Error("Select at least one platform");
   if (dto.cpm <= 0) throw new Error("CPM must be greater than zero");
   if (dto.budget <= 0) throw new Error("Budget must be greater than zero");
+  if (!dto.imageUrl?.trim()) throw new Error("Campaign thumbnail is required");
+  if (!isValidImageRef(dto.imageUrl)) throw new Error("Campaign thumbnail is invalid");
   if (dto.assetUrl && !isValidUrl(dto.assetUrl)) throw new Error("Asset URL is invalid");
-  if (dto.imageUrl && !isValidUrl(dto.imageUrl)) throw new Error("Image URL is invalid");
   if (dto.start && dto.end && new Date(dto.end) <= new Date(dto.start)) {
     throw new Error("End date must be after start date");
   }

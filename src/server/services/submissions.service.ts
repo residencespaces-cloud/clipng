@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { SubmissionStatus } from "@prisma/client";
+import { PayoutStatus, SubmissionStatus } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { validatePublicPostUrl } from "@/server/submission-proof";
 import { koboToNaira } from "@/server/money";
@@ -89,32 +89,29 @@ export async function listMine(userId: string) {
 }
 
 export async function getEarningsSummary(userId: string) {
-  const submissions = await prisma.clipSubmission.findMany({ where: { clipperId: userId } });
-  const totalEarned = submissions
-    .filter((s) => s.earningsKobo)
-    .reduce((sum, s) => sum + (s.earningsKobo ?? 0), 0);
-  const pending = submissions
-    .filter(
-      (s) =>
-        s.status === SubmissionStatus.approved_awaiting_views ||
-        s.status === SubmissionStatus.views_verified ||
-        s.status === SubmissionStatus.payout_triggered,
-    )
-    .reduce((sum, s) => sum + (s.earningsKobo ?? 0), 0);
-  const paid = submissions
-    .filter((s) => s.status === SubmissionStatus.paid)
-    .reduce((sum, s) => sum + (s.earningsKobo ?? 0), 0);
+  // A clip can be paid out many times as its views climb, so paid vs. pending
+  // comes from the payout items rather than the submission's status.
+  const [submissions, payoutItems] = await Promise.all([
+    prisma.clipSubmission.findMany({
+      where: { clipperId: userId },
+      select: { status: true, earningsKobo: true, viewsVerified: true },
+    }),
+    prisma.payoutItem.findMany({
+      where: { clipperId: userId },
+      select: { status: true, amountKobo: true },
+    }),
+  ]);
+
+  const totalEarned = submissions.reduce((sum, s) => sum + (s.earningsKobo ?? 0), 0);
+  const paid = payoutItems
+    .filter((p) => p.status === PayoutStatus.paid)
+    .reduce((sum, p) => sum + p.amountKobo, 0);
 
   return {
     totalEarned: koboToNaira(totalEarned),
-    pendingThisWeek: koboToNaira(pending),
+    pendingThisWeek: koboToNaira(Math.max(0, totalEarned - paid)),
     paidOut: koboToNaira(paid),
     clipsSubmitted: submissions.length,
-    clipsVerified: submissions.filter(
-      (s) =>
-        s.status === SubmissionStatus.views_verified ||
-        s.status === SubmissionStatus.payout_triggered ||
-        s.status === SubmissionStatus.paid,
-    ).length,
+    clipsVerified: submissions.filter((s) => (s.viewsVerified ?? 0) > 0).length,
   };
 }

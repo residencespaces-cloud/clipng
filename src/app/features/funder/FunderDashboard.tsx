@@ -104,13 +104,17 @@ export function FunderDashboard() {
 
   const launchCampaign = async () => {
     if (budgetNum <= 0 || walletBalance < budgetNum) return;
+    if (!form.imageUrl.trim()) {
+      toast.error("Upload a campaign thumbnail before launching");
+      return;
+    }
     setLaunching(true);
     try {
       await api.campaigns.create({
         name: form.name,
         sourceType: form.sourceType,
         assetUrl: form.assetUrl || undefined,
-        imageUrl: form.imageUrl || undefined,
+        imageUrl: form.imageUrl,
         bestMoments: form.bestMoments || undefined,
         description: form.description,
         platforms: form.platforms,

@@ -5,7 +5,11 @@ import { RoleGate } from "@/app/components/shared/RoleGate";
 import { PageLoader } from "@/app/components/shared/PageLoader";
 
 export const metadata: Metadata = {
-  title: "Funder Dashboard — KudiClip",
+  title: "Funder Dashboard",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function FunderPage() {

@@ -7,6 +7,7 @@ Everything runs in this Next.js app (no separate backend server).
 - Prisma + PostgreSQL (Neon recommended)
 - JWT auth (`jose` + refresh tokens)
 - Paystack (wallet top-ups + clipper payouts)
+- Cloudinary (campaign thumbnail uploads)
 - Resend (transactional email)
 - Vercel Cron (daily campaign maintenance)
 
@@ -41,7 +42,7 @@ npm run dev
 ## Vercel deploy
 
 1. Connect the repo to Vercel
-2. Set env vars from `.env.example` (especially `DATABASE_URL`, JWT secrets, Paystack, `CRON_SECRET`, `RESEND_API_KEY`)
+2. Set env vars from `.env.example` (especially `DATABASE_URL`, JWT secrets, Paystack, Cloudinary, `CRON_SECRET`, `RESEND_API_KEY`)
 3. Build command: `prisma generate && next build` (already in `package.json`)
 4. After first deploy, run migrations against Neon: `npx prisma migrate deploy`
 5. Configure Paystack webhook → `https://your-domain/api/webhooks/paystack`

@@ -32,11 +32,18 @@ export function CreateCampaignStep3({
   return (
     <>
       <h3 className="font-semibold">Review & Launch</h3>
+      {form.imageUrl && (
+        <div className="rounded-lg border border-border overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={form.imageUrl} alt="" className="w-full h-36 object-cover" />
+        </div>
+      )}
       <div className="space-y-1">
         {[
           { label: "Campaign Name", value: form.name || "Untitled Campaign" },
           { label: "Source Type", value: form.sourceType === "vod" ? "Livestream VOD" : "Single Video" },
           { label: "Source Asset", value: form.assetUrl || "Not provided" },
+          { label: "Thumbnail", value: form.imageUrl ? "Uploaded" : "Missing" },
           { label: "Moment Notes", value: form.bestMoments ? "Included" : "Not included" },
           { label: "Platforms", value: form.platforms.join(", ") || "None selected" },
           { label: "CPM (gross)", value: fmt(cpmNum) },
