@@ -159,13 +159,14 @@ export async function reserveEscrowForCampaign(
   campaignId: string,
   campaignName: string,
   budgetKobo: number,
+  reference?: string,
 ) {
   const wallet = await getWalletForFunder(userId);
   if (wallet.balanceKobo < BigInt(budgetKobo)) {
     throw new Error("Insufficient wallet balance");
   }
 
-  const reference = `escrow_${campaignId}`;
+  const ledgerRef = reference ?? `escrow_${campaignId}`;
 
   return prisma.$transaction(async (tx) => {
     const fresh = await tx.wallet.findUniqueOrThrow({ where: { id: wallet.id } });
@@ -185,7 +186,7 @@ export async function reserveEscrowForCampaign(
         amountKobo: BigInt(-budgetKobo),
         balanceAfterKobo: newBalance,
         description: `${campaignName} (escrow)`,
-        reference,
+        reference: ledgerRef,
         campaignId,
       },
     });

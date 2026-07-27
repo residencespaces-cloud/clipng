@@ -169,3 +169,67 @@ export async function joinCampaign(userId: string, campaignId: string) {
   });
   return { verificationCode: participation.verificationCode };
 }
+
+export async function extendCampaignBudget(userId: string, campaignId: string, amountNaira: number) {
+  if (!Number.isFinite(amountNaira) || amountNaira <= 0) {
+    throw new Error("Amount must be greater than zero");
+  }
+
+  const profile = await prisma.funderProfile.findUnique({ where: { userId } });
+  if (!profile) throw new Error("Funder profile required");
+
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    include: { funderProfile: true },
+  });
+  if (!campaign) throw new Error("Campaign not found");
+  if (campaign.funderProfileId !== profile.id) {
+    throw new Error("You can only extend your own campaigns");
+  }
+  if (campaign.status !== CampaignStatus.exhausted) {
+    throw new Error("Only exhausted campaigns can be extended");
+  }
+  if (campaign.endDate && campaign.endDate < new Date()) {
+    throw new Error("Campaign has ended — extend the end date before adding budget");
+  }
+
+  const amountKobo = nairaToKobo(amountNaira);
+  const extensionRef = `escrow_${campaignId}_ext_${Date.now()}`;
+
+  await reserveEscrowForCampaign(
+    userId,
+    campaignId,
+    `${campaign.name} (budget extension)`,
+    amountKobo,
+    extensionRef,
+  );
+
+  const updated = await prisma.campaign.update({
+    where: { id: campaignId },
+    data: {
+      budgetKobo: { increment: BigInt(amountKobo) },
+      remainingKobo: { increment: BigInt(amountKobo) },
+      status: CampaignStatus.active,
+    },
+    include: { funderProfile: true },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: userId,
+      action: "campaign.budget_extended",
+      entityType: "campaign",
+      entityId: campaignId,
+      metadata: { amount: amountNaira } as Prisma.InputJsonValue,
+    },
+  });
+
+  await notifyUser(
+    userId,
+    "Campaign budget extended",
+    `You added ₦${amountNaira.toLocaleString()} to "${campaign.name}". Clippers can earn again.`,
+    { campaignId, amount: amountNaira },
+  );
+
+  return mapCampaign(updated);
+}

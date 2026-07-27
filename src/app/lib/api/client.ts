@@ -142,6 +142,11 @@ export const api = {
       apiFetch<import('@/app/types').Campaign>('/campaigns', { method: 'POST', body: JSON.stringify(body) }),
     join: (id: string) =>
       apiFetch<{ verificationCode: string }>(`/campaigns/${id}/join`, { method: 'POST' }),
+    extendBudget: (id: string, amount: number) =>
+      apiFetch<import('@/app/types').Campaign>(`/campaigns/${id}/extend-budget`, {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      }),
   },
   uploads: {
     thumbnail: (file: File) => {

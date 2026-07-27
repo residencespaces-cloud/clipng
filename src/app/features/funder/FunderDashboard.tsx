@@ -43,6 +43,7 @@ export function FunderDashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignsLoading, setCampaignsLoading] = useState(true);
   const [walletLoading, setWalletLoading] = useState(true);
+  const [extendingId, setExtendingId] = useState<string | null>(null);
 
   const cpmNum = parseFloat(form.cpm) || 0;
   const budgetNum = parseFloat(form.budget) || 0;
@@ -133,6 +134,20 @@ export function FunderDashboard() {
     }
   };
 
+  const extendCampaignBudget = async (campaignId: string, amount: number) => {
+    if (amount <= 0 || walletBalance < amount) return;
+    setExtendingId(campaignId);
+    try {
+      await api.campaigns.extendBudget(campaignId, amount);
+      await Promise.all([refreshWallet(), refreshCampaigns()]);
+      toast.success(`Added ₦${amount.toLocaleString()} to campaign`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not extend budget");
+    } finally {
+      setExtendingId(null);
+    }
+  };
+
   return (
     <DashboardShell
       tab={tab}
@@ -151,7 +166,16 @@ export function FunderDashboard() {
           loading={campaignsLoading || walletLoading}
         />
       )}
-      {tab === "campaigns" && <FunderCampaigns campaigns={campaigns} loading={campaignsLoading} />}
+      {tab === "campaigns" && (
+        <FunderCampaigns
+          campaigns={campaigns}
+          loading={campaignsLoading}
+          walletBalance={walletBalance}
+          extendingId={extendingId}
+          onExtendBudget={extendCampaignBudget}
+          onFundWallet={() => setTab("billing")}
+        />
+      )}
       {tab === "create" && (
         <CreateCampaign
           form={form}
