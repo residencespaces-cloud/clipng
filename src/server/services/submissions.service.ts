@@ -4,7 +4,8 @@ import { prisma } from "@/server/prisma";
 import { validatePublicPostUrl } from "@/server/submission-proof";
 import { koboToNaira } from "@/server/money";
 import { normalizeStatus } from "@/server/status";
-import { notifyUser } from "@/server/services/notifications.service";
+import { notifyAllAdmins, notifyEmail } from "@/server/services/notifications.service";
+import * as Email from "@/server/emails/templates";
 
 function mapMyClip(s: {
   id: string;
@@ -63,10 +64,16 @@ export async function createSubmission(
       include: { campaign: true },
     });
 
-    await notifyUser(
+    await notifyEmail(
       userId,
-      "Clip submitted",
-      `Your clip for "${submission.campaign.name}" is pending admin review.`,
+      Email.clipSubmitted(submission.campaign.name),
+      { submissionId: submission.id },
+    );
+
+    const clipperName =
+      (await prisma.clipperProfile.findUnique({ where: { userId } }))?.displayName ?? "A clipper";
+    await notifyAllAdmins(
+      Email.adminClipPending(clipperName, submission.campaign.name),
       { submissionId: submission.id },
     );
 

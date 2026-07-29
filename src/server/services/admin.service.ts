@@ -3,7 +3,8 @@ import { prisma } from "@/server/prisma";
 import { koboToNaira, viewUpdateEarningsKobo } from "@/server/money";
 import { initiateTransfer } from "@/server/paystack";
 import { normalizeStatus } from "@/server/status";
-import { notifyUser } from "@/server/services/notifications.service";
+import { notifyEmail } from "@/server/services/notifications.service";
+import * as Email from "@/server/emails/templates";
 
 /** Submissions that have cleared review and can still accrue views. */
 const TRACKED_STATUSES: SubmissionStatus[] = [
@@ -195,10 +196,9 @@ export async function approveSubmission(adminId: string, submissionId: string, c
     },
   });
 
-  await notifyUser(
+  await notifyEmail(
     submission.clipperId,
-    "Clip approved",
-    `Your clip for "${submission.campaign.name}" was approved. Earnings will be calculated after view verification.`,
+    Email.clipApproved(submission.campaign.name),
     { submissionId },
   );
 
@@ -240,12 +240,9 @@ export async function rejectSubmission(adminId: string, submissionId: string, re
     },
   });
 
-  await notifyUser(
+  await notifyEmail(
     submission.clipperId,
-    "Clip rejected",
-    reason
-      ? `Your clip for "${submission.campaign.name}" was rejected: ${reason}`
-      : `Your clip for "${submission.campaign.name}" was rejected.`,
+    Email.clipRejected(submission.campaign.name, reason),
     { submissionId },
   );
 
@@ -396,10 +393,15 @@ export async function updateVerifiedViews(
     },
   });
 
-  await notifyUser(
+  await notifyEmail(
     submission.clipperId,
-    isFirstCredit ? "Views verified — earnings calculated" : "New views credited",
-    `${update.creditedViews.toLocaleString()} new views on your clip for "${campaign.name}" earned you ₦${koboToNaira(update.deltaClipperKobo).toLocaleString()}. Total credited views: ${update.totalViews.toLocaleString()}.`,
+    Email.viewsCredited({
+      campaignName: campaign.name,
+      creditedViews: update.creditedViews,
+      totalViews: update.totalViews,
+      earningsNaira: koboToNaira(update.deltaClipperKobo),
+      isFirst: isFirstCredit,
+    }),
     {
       submissionId,
       creditedViews: update.creditedViews,
@@ -407,6 +409,39 @@ export async function updateVerifiedViews(
       earnings: update.deltaClipperKobo,
     },
   );
+
+  // Alert funder when budget is low or just exhausted
+  const funderUserId = (
+    await prisma.funderProfile.findUnique({
+      where: { id: campaign.funderProfileId },
+      select: { userId: true },
+    })
+  )?.userId;
+
+  if (funderUserId) {
+    const remainingAfter = Number(clampedRemaining);
+    const remainingBefore = Number(campaign.remainingKobo);
+    const budgetTotal = Number(campaign.budgetKobo);
+    if (remainingAfter <= 0 && remainingBefore > 0) {
+      await notifyEmail(funderUserId, Email.campaignExhausted(campaign.name), {
+        campaignId: campaign.id,
+      });
+    } else if (budgetTotal > 0) {
+      const percentAfter = (remainingAfter / budgetTotal) * 100;
+      const percentBefore = (remainingBefore / budgetTotal) * 100;
+      if (percentAfter <= 20 && percentBefore > 20) {
+        await notifyEmail(
+          funderUserId,
+          Email.campaignBudgetLow(
+            campaign.name,
+            koboToNaira(remainingAfter),
+            Math.round(percentAfter),
+          ),
+          { campaignId: campaign.id, percentLeft: Math.round(percentAfter) },
+        );
+      }
+    }
+  }
 
   return {
     success: true,
@@ -481,10 +516,9 @@ export async function triggerPayout(adminId: string, payoutItemId: string) {
     },
   });
 
-  await notifyUser(
+  await notifyEmail(
     item.clipperId,
-    "Payout triggered",
-    `Your payout of ₦${koboToNaira(item.amountKobo).toLocaleString()} for "${item.submission.campaign.name}" has been initiated.`,
+    Email.payoutTriggered(item.submission.campaign.name, koboToNaira(item.amountKobo)),
     { payoutItemId: item.id, submissionId: item.submissionId, reference: paystackRef },
   );
 
@@ -511,10 +545,9 @@ export async function handleTransferSuccess(reference: string) {
     });
   });
 
-  await notifyUser(
+  await notifyEmail(
     item.clipperId,
-    "Payout completed",
-    `Your payout of ₦${koboToNaira(item.amountKobo).toLocaleString()} for "${item.submission.campaign.name}" has been paid.`,
+    Email.payoutCompleted(item.submission.campaign.name, koboToNaira(item.amountKobo)),
     { payoutItemId: item.id },
   );
 }
@@ -540,12 +573,7 @@ export async function handleTransferFailed(reference: string, reason?: string) {
     });
   });
 
-  await notifyUser(
-    item.clipperId,
-    "Payout failed",
-    `Your payout could not be completed. Our team will retry. Reason: ${reason ?? "Unknown"}`,
-    { payoutItemId: item.id },
-  );
+  await notifyEmail(item.clipperId, Email.payoutFailed(reason), { payoutItemId: item.id });
 }
 
 export async function listAllCampaigns() {

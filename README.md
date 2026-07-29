@@ -35,7 +35,7 @@ npm run dev
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@kudiclip.ng | password123 |
+| Admin | rabiutemi@gmail.com | password123 |
 | Funder | funder@kudiclip.ng | password123 |
 | Clipper | clipper@kudiclip.ng | password123 |
 

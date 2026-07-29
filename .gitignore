@@ -34,6 +34,9 @@ pnpm-debug.log*
 .env
 .env*.local
 
+# email HTML previews
+/tmp/
+
 # uploaded campaign thumbnails (local)
 /public/uploads/campaigns/*
 !/public/uploads/campaigns/.gitkeep

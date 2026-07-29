@@ -4,7 +4,8 @@ import { koboToNaira, nairaToKobo, generateVerificationCode } from "@/server/mon
 import { normalizeStatus } from "@/server/status";
 import { isValidImageRef } from "@/server/uploads";
 import { isValidUrl } from "@/server/validation";
-import { notifyUser } from "@/server/services/notifications.service";
+import { notifyEmail, notifyClippersNewCampaign } from "@/server/services/notifications.service";
+import * as Email from "@/server/emails/templates";
 import { reserveEscrowForCampaign } from "./wallet.service";
 
 function mapCampaign(c: {
@@ -113,12 +114,13 @@ export async function createCampaign(
     },
   });
 
-  await notifyUser(
+  await notifyEmail(
     userId,
-    "Campaign launched",
-    `Your campaign "${active.name}" is now live with a budget of ₦${dto.budget.toLocaleString()}.`,
+    Email.campaignLaunched(active.name, dto.budget),
     { campaignId: active.id },
   );
+
+  void notifyClippersNewCampaign(active.name, koboToNaira(active.cpmKobo), active.id);
 
   return mapCampaign(active);
 }
@@ -224,10 +226,9 @@ export async function extendCampaignBudget(userId: string, campaignId: string, a
     },
   });
 
-  await notifyUser(
+  await notifyEmail(
     userId,
-    "Campaign budget extended",
-    `You added ₦${amountNaira.toLocaleString()} to "${campaign.name}". Clippers can earn again.`,
+    Email.campaignBudgetExtended(campaign.name, amountNaira),
     { campaignId, amount: amountNaira },
   );
 

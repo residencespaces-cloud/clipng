@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/signup"],
-        disallow: ["/api/", "/admin", "/clipper", "/funder", "/uploads/"],
+        disallow: ["/api/", "/admin", "/clipper", "/funder", "/uploads/", "/login", "/forgot-password", "/reset-password", "/verify-email"],
       },
     ],
     sitemap: "https://kudiclip.com/sitemap.xml",

@@ -2,7 +2,8 @@ import { WalletLedgerType, Prisma } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { koboToNaira, nairaToKobo } from "@/server/money";
 import { initializeTransaction } from "@/server/paystack";
-import { notifyUser } from "@/server/services/notifications.service";
+import { notifyEmail } from "@/server/services/notifications.service";
+import * as Email from "@/server/emails/templates";
 
 export async function getWalletForFunder(userId: string) {
   const profile = await prisma.funderProfile.findUnique({
@@ -142,12 +143,7 @@ export async function creditTopUp(
       where: { id: wallet.funderProfile.userId },
     });
     if (funder) {
-      await notifyUser(
-        funder.id,
-        "Wallet topped up",
-        `Your wallet was credited with ₦${koboToNaira(amountKobo).toLocaleString()}.`,
-        { reference },
-      );
+      await notifyEmail(funder.id, Email.walletToppedUp(koboToNaira(amountKobo)), { reference });
     }
   }
 

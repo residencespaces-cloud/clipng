@@ -8,14 +8,25 @@ async function main() {
   const passwordHash = await bcrypt.hash("password123", 12);
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@kudiclip.ng" },
-    update: {},
+    where: { email: "rabiutemi@gmail.com" },
+    update: {
+      role: UserRole.admin,
+      emailVerified: true,
+      status: "active",
+      passwordHash,
+    },
     create: {
-      email: "admin@kudiclip.ng",
+      email: "rabiutemi@gmail.com",
       passwordHash,
       role: UserRole.admin,
       emailVerified: true,
     },
+  });
+
+  // Keep history on the old seed admin — demote instead of delete
+  await prisma.user.updateMany({
+    where: { email: "admin@kudiclip.ng", role: UserRole.admin },
+    data: { role: UserRole.clipper, status: "suspended" },
   });
 
   const funder = await prisma.user.upsert({

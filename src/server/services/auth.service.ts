@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { Prisma } from "@prisma/client";
-import { UserRole } from "@prisma/client";
+import { Prisma, UserRole } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { hashToken, issueTokens } from "@/server/auth";
 import { createTransferRecipient, resolveAccountNumber } from "@/server/paystack";
 import { isValidEmail, isValidPassword, isValidPhone } from "@/server/validation";
-import { notifyUser } from "@/server/services/notifications.service";
+import {
+  notifyEmail,
+  sendLoginAlert,
+  sendPasswordResetEmail,
+  sendVerifyEmail,
+} from "@/server/services/notifications.service";
+import { verifyEmailActionToken } from "@/server/emails/tokens";
+import * as Email from "@/server/emails/templates";
 import { redeemSignupToken } from "@/server/services/signup-tokens.service";
 
 async function verifyAndCreateRecipient(
@@ -82,11 +88,8 @@ export async function signupClipper(body: {
         },
       },
     });
-    await notifyUser(
-      user.id,
-      "Welcome to KudiClip",
-      `Hi ${body.name}, your clipper account is ready. Browse live campaigns and start earning.`,
-    );
+    await notifyEmail(user.id, Email.welcomeClipper(body.name));
+    await sendVerifyEmail(user.id, user.email, body.name);
     return issueTokens(user);
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -149,13 +152,8 @@ export async function signupFunder(body: {
       }
     }
 
-    await notifyUser(
-      user.id,
-      "Welcome to KudiClip",
-      tokenCode
-        ? `Hi ${body.business}, your funder account is ready and your signup credit has been added to your wallet.`
-        : `Hi ${body.business}, your funder account is ready. Fund your wallet and launch your first campaign.`,
-    );
+    await notifyEmail(user.id, Email.welcomeFunder(body.business, Boolean(tokenCode)));
+    await sendVerifyEmail(user.id, user.email, body.business);
     return issueTokens(user);
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -232,7 +230,47 @@ export async function login(email: string, password: string) {
       code: "EMAIL_NOT_VERIFIED",
     });
   }
-  return issueTokens(user);
+  const tokens = await issueTokens(user);
+  void sendLoginAlert(user.id, user.email);
+  return tokens;
+}
+
+export async function requestPasswordReset(email: string) {
+  if (!isValidEmail(email)) throw new Error("Enter a valid email address.");
+  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+  // Always succeed so we don't leak whether the account exists
+  if (!user) return { success: true };
+  await sendPasswordResetEmail(user.id, user.email);
+  return { success: true };
+}
+
+export async function resetPasswordWithToken(token: string, newPassword: string) {
+  if (!isValidPassword(newPassword)) throw new Error("Password must be at least 8 characters.");
+  const { userId, email } = await verifyEmailActionToken(token, "reset_password");
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.email !== email) throw new Error("Invalid or expired link");
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+    prisma.refreshToken.deleteMany({ where: { userId } }),
+  ]);
+  return { success: true };
+}
+
+export async function confirmEmailWithToken(token: string) {
+  const { userId, email } = await verifyEmailActionToken(token, "verify_email");
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || user.email !== email) throw new Error("Invalid or expired link");
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      emailVerified: true,
+      status: user.status === "pending_verification" ? "active" : user.status,
+    },
+  });
+  return { success: true };
 }
 
 export async function refresh(refreshToken: string) {
