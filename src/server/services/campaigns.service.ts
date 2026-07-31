@@ -126,12 +126,22 @@ export async function createCampaign(
 }
 
 export async function listLive() {
+  // Public + clipper catalogue: show active and budget-exhausted campaigns
+  // (most recent first). Join remains restricted to active only.
   const campaigns = await prisma.campaign.findMany({
-    where: { status: CampaignStatus.active },
+    where: {
+      status: { in: [CampaignStatus.active, CampaignStatus.exhausted] },
+    },
     include: { funderProfile: true },
     orderBy: { createdAt: "desc" },
   });
   return campaigns.map(mapCampaign);
+}
+
+/** Landing hero + grid: newest first, capped. */
+export async function listPublic(limit = 12) {
+  const campaigns = await listLive();
+  return campaigns.slice(0, limit);
 }
 
 export async function listMy(userId: string) {

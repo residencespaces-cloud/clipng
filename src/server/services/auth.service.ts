@@ -59,6 +59,9 @@ export async function signupClipper(body: {
   if (!isValidEmail(body.email)) throw new Error("Enter a valid email address.");
   if (!isValidPassword(body.password)) throw new Error("Password must be at least 8 characters.");
   if (!isValidPhone(body.phone)) throw new Error("Enter a valid phone number.");
+  if (body.name.trim().toLowerCase() === body.password.toLowerCase()) {
+    throw new Error("Full name cannot be the same as your password.");
+  }
   if (!body.bankCode?.trim()) throw new Error("Select your bank.");
 
   let bankDetails: Awaited<ReturnType<typeof verifyAndCreateRecipient>>;
@@ -110,6 +113,13 @@ export async function signupFunder(body: {
   if (!isValidEmail(body.email)) throw new Error("Enter a valid email address.");
   if (!isValidPassword(body.password)) throw new Error("Password must be at least 8 characters.");
   if (!isValidPhone(body.phone)) throw new Error("Enter a valid phone number.");
+  if (!body.business?.trim()) throw new Error("Business / brand name is required.");
+  if (body.business.trim().toLowerCase() === body.password.toLowerCase()) {
+    throw new Error("Business name cannot be the same as your password.");
+  }
+  if (body.name.trim().toLowerCase() === body.password.toLowerCase()) {
+    throw new Error("Full name cannot be the same as your password.");
+  }
 
   const tokenCode = body.signupToken?.trim();
   if (tokenCode) {
@@ -191,11 +201,12 @@ export async function updateFunderProfile(
 ) {
   const profile = await prisma.funderProfile.findUnique({ where: { userId } });
   if (!profile) throw new Error("Funder profile not found");
+  if (!body.businessName?.trim()) throw new Error("Business name is required");
 
   await prisma.funderProfile.update({
     where: { userId },
     data: {
-      businessName: body.businessName,
+      businessName: body.businessName.trim(),
       phone: body.phone ?? profile.phone,
     },
   });

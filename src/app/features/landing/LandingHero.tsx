@@ -6,10 +6,13 @@ import { StatusBadge } from "@/app/components/shared/StatusBadge";
 import { clipperCpm, fmt } from "@/app/lib/format";
 import type { Campaign } from "@/app/types";
 
-export function LandingHero({ campaigns = [] }: { campaigns?: Campaign[] }) {
-  const featured = campaigns[0] ?? null;
-  const campaignCount = campaigns.length;
-
+export function LandingHero({
+  featured = null,
+  campaignCount = 0,
+}: {
+  featured?: Campaign | null;
+  campaignCount?: number;
+}) {
   return (
     <section className="pt-24 sm:pt-28 pb-16 sm:pb-24 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
@@ -18,7 +21,7 @@ export function LandingHero({ campaigns = [] }: { campaigns?: Campaign[] }) {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-mono mb-5 sm:mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
               <span className="truncate">
-                {campaignCount > 0 ? `${campaignCount} active campaigns` : "Campaigns launching soon"}
+                {campaignCount > 0 ? `${campaignCount}+ campaigns on KudiClip` : "Campaigns launching soon"}
               </span>
             </div>
             <h1
@@ -50,7 +53,7 @@ export function LandingHero({ campaigns = [] }: { campaigns?: Campaign[] }) {
           <div className="relative min-w-0">
             <div className="bg-card border border-border rounded-xl p-4 sm:p-6 space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-semibold">Live Campaign</span>
+                <span className="text-sm font-semibold">Latest Campaign</span>
                 <StatusBadge status={featured?.status ?? "Active"} />
               </div>
               <div className="relative bg-secondary rounded-lg overflow-hidden aspect-video group">
@@ -107,10 +110,10 @@ export function LandingHero({ campaigns = [] }: { campaigns?: Campaign[] }) {
                 </>
               )}
               <Link
-                href="/signup?role=clipper"
+                href={featured?.status === "Exhausted" ? "/signup?role=funder" : "/signup?role=clipper"}
                 className="block w-full py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded hover:bg-primary/90 transition-all text-center"
               >
-                Join Campaign →
+                {featured?.status === "Exhausted" ? "Budget exhausted — Fund a campaign →" : "Join Campaign →"}
               </Link>
             </div>
           </div>

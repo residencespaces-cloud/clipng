@@ -64,7 +64,7 @@ export function ClipperCampaigns({
   if (campaigns.length === 0) {
     return (
       <div className="bg-card border border-border rounded-xl p-12 text-center text-muted-foreground">
-        <p className="text-sm">No live campaigns right now. Check back soon.</p>
+        <p className="text-sm">No campaigns yet. Check back soon.</p>
       </div>
     );
   }
@@ -217,6 +217,13 @@ export function ClipperCampaigns({
                 )}
               </div>
             </div>
+          ) : c.status === "Exhausted" || c.remaining <= 0 ? (
+            <button
+              disabled
+              className="w-full py-2.5 bg-secondary text-muted-foreground text-sm font-bold rounded border border-border cursor-not-allowed"
+            >
+              Budget exhausted
+            </button>
           ) : (
             <button
               onClick={() => onJoin(c.id)}

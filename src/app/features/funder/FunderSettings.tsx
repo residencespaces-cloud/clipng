@@ -16,6 +16,12 @@ export function FunderSettings() {
       toast.error("Business name is required");
       return;
     }
+    // Never allow saving a value that matches a typical password pattern into the public display name blindly —
+    // still block obvious same-as-email-local if needed; main guard is signup.
+    if (businessName.trim().includes("@") && /\d/.test(businessName)) {
+      toast.error("That looks like a password. Use your public brand name instead.");
+      return;
+    }
     setSaving(true);
     try {
       await api.profile.updateFunder({ businessName: businessName.trim(), phone: phone.trim() });

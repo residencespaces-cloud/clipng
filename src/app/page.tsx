@@ -30,8 +30,12 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   let campaigns: Campaign[] = [];
+  let campaignCount = 0;
   try {
-    campaigns = (await listLive()).slice(0, 8);
+    const all = await listLive();
+    campaignCount = all.length;
+    // Newest first; hero uses [0], grid uses the following 4
+    campaigns = all.slice(0, 5);
   } catch {
     campaigns = [];
   }
@@ -83,7 +87,7 @@ export default async function HomePage() {
           },
         ]}
       />
-      <Landing campaigns={campaigns} />
+      <Landing campaigns={campaigns} campaignCount={campaignCount} />
     </>
   );
 }

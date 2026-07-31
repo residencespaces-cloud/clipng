@@ -3,11 +3,20 @@ import { HowItWorks } from "./HowItWorks";
 import { LandingFooter } from "./LandingFooter";
 import { LandingHero } from "./LandingHero";
 import { LandingNav } from "./LandingNav";
-import { LiveCampaigns } from "./LiveCampaigns";
+import { CampaignsSection } from "./CampaignsSection";
 import { MoneyMath } from "./MoneyMath";
 import type { Campaign } from "@/app/types";
 
-export function Landing({ campaigns = [] }: { campaigns?: Campaign[] }) {
+export function Landing({
+  campaigns = [],
+  campaignCount,
+}: {
+  campaigns?: Campaign[];
+  campaignCount?: number;
+}) {
+  const featured = campaigns[0];
+  const grid = campaigns.slice(1, 5);
+
   return (
     <div
       className="min-h-screen bg-background text-foreground"
@@ -15,10 +24,10 @@ export function Landing({ campaigns = [] }: { campaigns?: Campaign[] }) {
     >
       <LandingNav />
       <main>
-        <LandingHero campaigns={campaigns} />
+        <LandingHero featured={featured} campaignCount={campaignCount ?? campaigns.length} />
         <HowItWorks />
         <CreatorBenefits />
-        <LiveCampaigns campaigns={campaigns} />
+        <CampaignsSection campaigns={grid} />
         <MoneyMath />
       </main>
       <LandingFooter />

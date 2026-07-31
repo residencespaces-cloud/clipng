@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { listLive } from "@/server/services/campaigns.service";
+import { listPublic } from "@/server/services/campaigns.service";
 
 export async function GET() {
-  const campaigns = await listLive();
-  return NextResponse.json(campaigns.slice(0, 8));
+  const campaigns = await listPublic(8);
+  return NextResponse.json(campaigns);
 }

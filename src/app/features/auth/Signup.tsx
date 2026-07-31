@@ -61,6 +61,14 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
       setError("Add your business / brand name to continue.");
       return;
     }
+    if (form.password.trim().toLowerCase() === form.business.trim().toLowerCase()) {
+      setError("Business name cannot be the same as your password.");
+      return;
+    }
+    if (form.password.trim().toLowerCase() === form.name.trim().toLowerCase()) {
+      setError("Full name cannot be the same as your password.");
+      return;
+    }
     if (role === "clipper") {
       if (!bank.bankCode || bank.accountNumber.length !== 10) {
         setError("Select your bank and enter a 10-digit account number.");
@@ -131,13 +139,29 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
             <Field label="Full name">
               <div className="relative">
                 <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input type="text" value={form.name} onChange={set("name")} placeholder="Adaeze Obi" className={`${inputClass} pl-9`} />
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={set("name")}
+                  placeholder="Adaeze Obi"
+                  className={`${inputClass} pl-9`}
+                  autoComplete="name"
+                />
               </div>
             </Field>
             <Field label="Phone">
               <div className="relative">
                 <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input type="tel" value={form.phone} onChange={set("phone")} placeholder="0801 234 5678" className={`${inputClass} pl-9`} />
+                <input
+                  type="tel"
+                  name="phone"
+                  value={form.phone}
+                  onChange={set("phone")}
+                  placeholder="0801 234 5678"
+                  className={`${inputClass} pl-9`}
+                  autoComplete="tel"
+                />
               </div>
             </Field>
           </div>
@@ -145,15 +169,41 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
           <Field label="Email">
             <div className="relative">
               <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input type="email" value={form.email} onChange={set("email")} placeholder="you@email.com" className={`${inputClass} pl-9`} />
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={set("email")}
+                placeholder="you@email.com"
+                className={`${inputClass} pl-9`}
+                autoComplete="email"
+              />
             </div>
           </Field>
+
+          {role === "funder" && (
+            <Field label="Business / brand name">
+              <div className="relative">
+                <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  name="organization"
+                  value={form.business}
+                  onChange={set("business")}
+                  placeholder="Spaceship Collective"
+                  className={`${inputClass} pl-9`}
+                  autoComplete="organization"
+                />
+              </div>
+            </Field>
+          )}
 
           <Field label="Password">
             <div className="relative">
               <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type={showPassword ? "text" : "password"}
+                name="password"
                 value={form.password}
                 onChange={set("password")}
                 placeholder="Min. 8 characters"
@@ -171,30 +221,22 @@ export function Signup({ initialRole = "clipper" }: { initialRole?: AuthRole }) 
           </Field>
 
           {role === "funder" ? (
-            <>
-              <Field label="Business / brand name">
-                <div className="relative">
-                  <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input type="text" value={form.business} onChange={set("business")} placeholder="Spaceship Collective" className={`${inputClass} pl-9`} />
-                </div>
-              </Field>
-              <Field label="Signup token (optional)">
-                <div className="relative">
-                  <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={form.signupToken}
-                    onChange={set("signupToken")}
-                    placeholder="KC-XXXXXXXX"
-                    className={`${inputClass} pl-9 font-mono uppercase`}
-                    autoComplete="off"
-                  />
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-1.5">
-                  Have a studio invite token? Enter it to receive wallet credit on signup.
-                </p>
-              </Field>
-            </>
+            <Field label="Signup token (optional)">
+              <div className="relative">
+                <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={form.signupToken}
+                  onChange={set("signupToken")}
+                  placeholder="KC-XXXXXXXX"
+                  className={`${inputClass} pl-9 font-mono uppercase`}
+                  autoComplete="off"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1.5">
+                Have a studio invite token? Enter it to receive wallet credit on signup.
+              </p>
+            </Field>
           ) : (
             <div className="space-y-4 pt-1 border-t border-border">
               <p className="text-xs font-mono text-accent uppercase tracking-widest pt-3">Payout details</p>
