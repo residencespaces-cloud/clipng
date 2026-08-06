@@ -8,6 +8,7 @@ import { api } from "@/app/lib/api/client";
 import { useAuth } from "@/app/lib/auth/auth-context";
 import type { Campaign, ClipperTab, EarningsSummary, MyClip } from "@/app/types";
 import { validatePublicPostUrl } from "@/app/lib/submission-proof";
+import { hasCampaignRules, rulesFromCampaign } from "@/app/components/shared/CampaignRulesPanel";
 import { ClipperCampaigns } from "./ClipperCampaigns";
 import { ClipperClips } from "./ClipperClips";
 import { ClipperEarnings } from "./ClipperEarnings";
@@ -29,6 +30,7 @@ export function ClipperDashboard() {
   const [submitted, setSubmitted] = useState(false);
   const [joinCodes, setJoinCodes] = useState<Record<string, string>>({});
   const [codeConfirmed, setCodeConfirmed] = useState(false);
+  const [rulesAcked, setRulesAcked] = useState(false);
   const [submissionError, setSubmissionError] = useState("");
   const [joining, setJoining] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -93,6 +95,7 @@ export function ClipperDashboard() {
             joinedCampaign === null ? "" : joinCodes[joinedCampaign] ?? ""
           }
           codeConfirmed={codeConfirmed}
+          rulesAcked={rulesAcked}
           submissionError={submissionError}
           onJoin={async (id) => {
             setJoining(true);
@@ -103,6 +106,7 @@ export function ClipperDashboard() {
               setSubmitted(false);
               setClipUrl("");
               setCodeConfirmed(false);
+              setRulesAcked(false);
               setSubmissionError("");
               toast.success("Joined campaign");
             } catch (err) {
@@ -113,7 +117,10 @@ export function ClipperDashboard() {
               setJoining(false);
             }
           }}
-          onCloseJoin={() => setJoinedCampaign(null)}
+          onCloseJoin={() => {
+            setJoinedCampaign(null);
+            setRulesAcked(false);
+          }}
           onClipUrl={(value) => {
             setClipUrl(value);
             setSubmissionError("");
@@ -124,8 +131,14 @@ export function ClipperDashboard() {
             setSubmissionError("");
           }}
           onCodeConfirmed={setCodeConfirmed}
+          onRulesAcked={setRulesAcked}
           onSubmit={async () => {
             if (!joinedCampaign) return;
+            const campaign = campaigns.find((c) => c.id === joinedCampaign);
+            if (campaign && hasCampaignRules(rulesFromCampaign(campaign)) && !rulesAcked) {
+              setSubmissionError("Confirm that you will follow the creator rules.");
+              return;
+            }
             if (!codeConfirmed) {
               setSubmissionError("Confirm that your unique code is visible in the post caption.");
               return;

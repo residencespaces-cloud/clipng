@@ -180,7 +180,18 @@ model Campaign {
   assetUrl        String?        @map("asset_url")
   assetStorageKey String?        @map("asset_storage_key")
   bestMoments     String?        @map("best_moments")
+  /// Public campaign brief shown to clippers (what the content is about).
   description     String
+  /// Exact caption / hashtags / mention clippers must include (besides their unique code).
+  requiredCaption String?        @map("required_caption")
+  minClipSeconds  Int?           @map("min_clip_seconds")
+  maxClipSeconds  Int?           @map("max_clip_seconds")
+  /// Null = unlimited submissions per clipper for this campaign.
+  maxClipsPerClipper Int?        @map("max_clips_per_clipper")
+  rulesDo         String[]       @default([]) @map("rules_do")
+  rulesDont       String[]       @default([]) @map("rules_dont")
+  /// Extra freeform creator rules / notes.
+  rulesNotes      String?        @map("rules_notes")
   platforms       String[]
   cpmKobo         Int            @map("cpm_kobo")
   budgetKobo      BigInt         @map("budget_kobo")

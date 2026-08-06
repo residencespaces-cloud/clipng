@@ -49,6 +49,16 @@ export async function createSubmission(
     throw new Error(`Platform "${dto.platform}" is not allowed for this campaign.`);
   }
 
+  const maxClips = participation.campaign.maxClipsPerClipper;
+  if (maxClips && maxClips > 0) {
+    const existingCount = await prisma.clipSubmission.count({
+      where: { campaignId: dto.campaignId, clipperId: userId },
+    });
+    if (existingCount >= maxClips) {
+      throw new Error(`This campaign allows a maximum of ${maxClips} clip${maxClips === 1 ? "" : "s"} per clipper.`);
+    }
+  }
+
   try {
     const submission = await prisma.clipSubmission.create({
       data: {

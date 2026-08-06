@@ -1,10 +1,56 @@
 "use client";
 
 import { useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { ImagePlus, Loader2, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/app/lib/api/client";
 import type { CreateCampaignForm, CreateStep } from "@/app/types";
+
+const RULE_TEMPLATES: {
+  key: string;
+  label: string;
+  apply: Partial<CreateCampaignForm>;
+}[] = [
+  {
+    key: "music",
+    label: "Music drop",
+    apply: {
+      requiredCaption: "#KudiClip",
+      minClipSeconds: "15",
+      maxClipSeconds: "60",
+      maxClipsPerClipper: "5",
+      rulesDo: "Keep original audio\nStart with a strong hook in the first 3 seconds\nShow the artist or key lyric moment\nUse vertical 9:16",
+      rulesDont: "No sped-up/slowed mashups that break the song\nNo unrelated gameplay overlays\nNo spam reposts of the full video",
+      rulesNotes: "Include your unique campaign code in the caption along with any required hashtags.",
+    },
+  },
+  {
+    key: "skit",
+    label: "Skit / comedy",
+    apply: {
+      requiredCaption: "#KudiClip",
+      minClipSeconds: "10",
+      maxClipSeconds: "45",
+      maxClipsPerClipper: "5",
+      rulesDo: "Lead with the punchline or reaction\nKeep faces and timing clear\nAdd light on-screen text if it helps the joke",
+      rulesDont: "No stolen reaction clips from other accounts\nNo NSFW edits\nNo watermark spam covering the skit",
+      rulesNotes: "Include your unique campaign code in the caption.",
+    },
+  },
+  {
+    key: "brand",
+    label: "Brand / product",
+    apply: {
+      requiredCaption: "#ad #KudiClip",
+      minClipSeconds: "15",
+      maxClipSeconds: "60",
+      maxClipsPerClipper: "3",
+      rulesDo: "Show the product clearly\nMention the brand in caption\nKeep tone positive and on-brief",
+      rulesDont: "No competitor mentions\nNo misleading claims\nNo low-light unreadable product shots",
+      rulesNotes: "Disclose the partnership if required by the platform. Include your unique campaign code.",
+    },
+  },
+];
 
 export function CreateCampaignStep1({
   form,
@@ -20,12 +66,21 @@ export function CreateCampaignStep1({
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
+  const hasRules =
+    form.requiredCaption.trim() ||
+    form.rulesDo.trim() ||
+    form.rulesDont.trim() ||
+    form.rulesNotes.trim() ||
+    form.minClipSeconds.trim() ||
+    form.maxClipSeconds.trim();
+
   const canContinue =
     form.name.trim() &&
     form.description.trim() &&
     form.assetUrl.trim() &&
     form.imageUrl.trim() &&
     form.platforms.length > 0 &&
+    hasRules &&
     !uploading;
 
   const onFile = async (file: File | undefined) => {
@@ -45,6 +100,13 @@ export function CreateCampaignStep1({
 
   const clearThumbnail = () => {
     setForm((f) => ({ ...f, imageUrl: "" }));
+  };
+
+  const applyTemplate = (key: string) => {
+    const template = RULE_TEMPLATES.find((t) => t.key === key);
+    if (!template) return;
+    setForm((f) => ({ ...f, ...template.apply }));
+    toast.success(`Applied “${template.label}” rules — edit as needed`);
   };
 
   return (
@@ -141,9 +203,6 @@ export function CreateCampaignStep1({
               )}
             </button>
           )}
-          {!form.imageUrl && (
-            <p className="text-[11px] text-muted-foreground mt-1.5">Required — shown on campaign cards for clippers.</p>
-          )}
         </div>
         <div>
           <label className="text-xs text-muted-foreground block mb-1.5">
@@ -163,15 +222,125 @@ export function CreateCampaignStep1({
           />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground block mb-1.5">Brief / Rules for Clippers</label>
+          <label className="text-xs text-muted-foreground block mb-1.5">
+            Campaign brief <span className="text-red-400">*</span>
+          </label>
           <textarea
-            placeholder="Required caption, minimum clip length, creative guidelines..."
+            placeholder="What is this campaign about? Who is it for? What should a great clip feel like?"
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             rows={3}
             className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground resize-none"
           />
         </div>
+
+        <div className="border-t border-border pt-4 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-semibold">Creator rules</h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Clippers and admins will see these when joining and reviewing.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {RULE_TEMPLATES.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => applyTemplate(t.key)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] border border-border rounded hover:border-primary/40 hover:text-primary transition-colors"
+                >
+                  <Sparkles size={10} /> {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1.5">Required caption / hashtags</label>
+            <input
+              type="text"
+              placeholder="e.g. #CityBoys #KudiClip @artist"
+              value={form.requiredCaption}
+              onChange={(e) => setForm((f) => ({ ...f, requiredCaption: e.target.value }))}
+              className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Unique campaign codes are always required in addition to this.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1.5">Min length (sec)</label>
+              <input
+                type="number"
+                min={1}
+                placeholder="15"
+                value={form.minClipSeconds}
+                onChange={(e) => setForm((f) => ({ ...f, minClipSeconds: e.target.value }))}
+                className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1.5">Max length (sec)</label>
+              <input
+                type="number"
+                min={1}
+                placeholder="60"
+                value={form.maxClipSeconds}
+                onChange={(e) => setForm((f) => ({ ...f, maxClipSeconds: e.target.value }))}
+                className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1.5">Max clips / clipper</label>
+              <input
+                type="number"
+                min={1}
+                placeholder="Unlimited"
+                value={form.maxClipsPerClipper}
+                onChange={(e) => setForm((f) => ({ ...f, maxClipsPerClipper: e.target.value }))}
+                className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1.5">Do (one per line)</label>
+              <textarea
+                placeholder={"Keep original audio\nStart with a hook"}
+                value={form.rulesDo}
+                onChange={(e) => setForm((f) => ({ ...f, rulesDo: e.target.value }))}
+                rows={4}
+                className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground resize-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1.5">Don&apos;t (one per line)</label>
+              <textarea
+                placeholder={"No full-video reposts\nNo unrelated overlays"}
+                value={form.rulesDont}
+                onChange={(e) => setForm((f) => ({ ...f, rulesDont: e.target.value }))}
+                rows={4}
+                className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground resize-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1.5">Extra rule notes</label>
+            <textarea
+              placeholder="Anything else admins should enforce when reviewing..."
+              value={form.rulesNotes}
+              onChange={(e) => setForm((f) => ({ ...f, rulesNotes: e.target.value }))}
+              rows={2}
+              className="w-full bg-input-background border border-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground resize-none"
+            />
+          </div>
+        </div>
+
         <div>
           <label className="text-xs text-muted-foreground block mb-2">Allowed Platforms</label>
           <div className="flex gap-2">

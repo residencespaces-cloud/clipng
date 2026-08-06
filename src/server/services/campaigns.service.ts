@@ -8,6 +8,22 @@ import { notifyEmail, notifyClippersNewCampaign } from "@/server/services/notifi
 import * as Email from "@/server/emails/templates";
 import { reserveEscrowForCampaign } from "./wallet.service";
 
+function linesToList(value?: string) {
+  if (!value?.trim()) return [] as string[];
+  return value
+    .split("\n")
+    .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+function optionalPositiveInt(value?: string | number | null) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
+}
+
 function mapCampaign(c: {
   id: string;
   name: string;
@@ -22,6 +38,14 @@ function mapCampaign(c: {
   description: string;
   assetUrl: string | null;
   imageUrl: string | null;
+  bestMoments?: string | null;
+  requiredCaption?: string | null;
+  minClipSeconds?: number | null;
+  maxClipSeconds?: number | null;
+  maxClipsPerClipper?: number | null;
+  rulesDo?: string[];
+  rulesDont?: string[];
+  rulesNotes?: string | null;
   funderProfile: { businessName: string };
 }) {
   return {
@@ -39,6 +63,14 @@ function mapCampaign(c: {
     description: c.description,
     asset: c.assetUrl ?? "",
     image: c.imageUrl ?? "",
+    bestMoments: c.bestMoments ?? "",
+    requiredCaption: c.requiredCaption ?? "",
+    minClipSeconds: c.minClipSeconds ?? null,
+    maxClipSeconds: c.maxClipSeconds ?? null,
+    maxClipsPerClipper: c.maxClipsPerClipper ?? null,
+    rulesDo: c.rulesDo ?? [],
+    rulesDont: c.rulesDont ?? [],
+    rulesNotes: c.rulesNotes ?? "",
   };
 }
 
@@ -50,6 +82,13 @@ export async function createCampaign(
     assetUrl?: string;
     bestMoments?: string;
     description: string;
+    requiredCaption?: string;
+    minClipSeconds?: number | string | null;
+    maxClipSeconds?: number | string | null;
+    maxClipsPerClipper?: number | string | null;
+    rulesDo?: string | string[];
+    rulesDont?: string | string[];
+    rulesNotes?: string;
     platforms: string[];
     cpm: number;
     budget: number;
@@ -62,7 +101,7 @@ export async function createCampaign(
   if (!profile) throw new Error("Funder profile required");
 
   if (!dto.name?.trim()) throw new Error("Campaign name is required");
-  if (!dto.description?.trim()) throw new Error("Campaign description is required");
+  if (!dto.description?.trim()) throw new Error("Campaign brief is required");
   if (!dto.platforms?.length) throw new Error("Select at least one platform");
   if (dto.cpm <= 0) throw new Error("CPM must be greater than zero");
   if (dto.budget <= 0) throw new Error("Budget must be greater than zero");
@@ -73,17 +112,40 @@ export async function createCampaign(
     throw new Error("End date must be after start date");
   }
 
+  const minClipSeconds = optionalPositiveInt(dto.minClipSeconds);
+  const maxClipSeconds = optionalPositiveInt(dto.maxClipSeconds);
+  const maxClipsPerClipper = optionalPositiveInt(dto.maxClipsPerClipper);
+  if (minClipSeconds && maxClipSeconds && minClipSeconds > maxClipSeconds) {
+    throw new Error("Minimum clip length cannot be greater than maximum.");
+  }
+
+  const rulesDo = Array.isArray(dto.rulesDo) ? dto.rulesDo.filter(Boolean).slice(0, 20) : linesToList(dto.rulesDo);
+  const rulesDont = Array.isArray(dto.rulesDont)
+    ? dto.rulesDont.filter(Boolean).slice(0, 20)
+    : linesToList(dto.rulesDont);
+
+  if (rulesDo.length === 0 && rulesDont.length === 0 && !dto.requiredCaption?.trim() && !dto.rulesNotes?.trim()) {
+    throw new Error("Add at least one creator rule (do/don't, required caption, or notes).");
+  }
+
   const budgetKobo = nairaToKobo(dto.budget);
   const cpmKobo = nairaToKobo(dto.cpm);
 
   const campaign = await prisma.campaign.create({
     data: {
       funderProfileId: profile.id,
-      name: dto.name,
+      name: dto.name.trim(),
       sourceType: dto.sourceType,
       assetUrl: dto.assetUrl,
-      bestMoments: dto.bestMoments,
-      description: dto.description,
+      bestMoments: dto.bestMoments?.trim() || null,
+      description: dto.description.trim(),
+      requiredCaption: dto.requiredCaption?.trim() || null,
+      minClipSeconds,
+      maxClipSeconds,
+      maxClipsPerClipper,
+      rulesDo,
+      rulesDont,
+      rulesNotes: dto.rulesNotes?.trim() || null,
       platforms: dto.platforms,
       cpmKobo,
       budgetKobo: BigInt(budgetKobo),

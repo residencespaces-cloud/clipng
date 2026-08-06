@@ -44,6 +44,23 @@ export function CreateCampaignStep3({
           { label: "Source Type", value: form.sourceType === "vod" ? "Livestream VOD" : "Single Video" },
           { label: "Source Asset", value: form.assetUrl || "Not provided" },
           { label: "Thumbnail", value: form.imageUrl ? "Uploaded" : "Missing" },
+          { label: "Brief", value: form.description ? "Included" : "Missing" },
+          { label: "Required caption", value: form.requiredCaption || "None" },
+          {
+            label: "Clip length",
+            value:
+              form.minClipSeconds || form.maxClipSeconds
+                ? `${form.minClipSeconds || "any"}–${form.maxClipSeconds || "any"} sec`
+                : "No limit",
+          },
+          {
+            label: "Max clips / clipper",
+            value: form.maxClipsPerClipper || "Unlimited",
+          },
+          {
+            label: "Do / Don't rules",
+            value: `${form.rulesDo.split("\n").filter((l) => l.trim()).length} do · ${form.rulesDont.split("\n").filter((l) => l.trim()).length} don't`,
+          },
           { label: "Moment Notes", value: form.bestMoments ? "Included" : "Not included" },
           { label: "Platforms", value: form.platforms.join(", ") || "None selected" },
           { label: "CPM (gross)", value: fmt(cpmNum) },
@@ -53,9 +70,9 @@ export function CreateCampaignStep3({
           { label: "Campaign End", value: form.end || "Not set" },
           { label: "Wallet Balance", value: fmt(walletBalance) },
         ].map((r) => (
-          <div key={r.label} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
-            <span className="text-xs text-muted-foreground">{r.label}</span>
-            <span className="text-sm font-mono font-medium" style={{ fontFamily: "'DM Mono', monospace" }}>{r.value}</span>
+          <div key={r.label} className="flex items-center justify-between py-2.5 border-b border-border last:border-0 gap-3">
+            <span className="text-xs text-muted-foreground shrink-0">{r.label}</span>
+            <span className="text-sm font-mono font-medium text-right truncate" style={{ fontFamily: "'DM Mono', monospace" }}>{r.value}</span>
           </div>
         ))}
       </div>

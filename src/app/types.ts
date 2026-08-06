@@ -21,6 +21,24 @@ export interface Campaign {
   description: string;
   asset: string;
   image: string;
+  bestMoments?: string;
+  requiredCaption?: string;
+  minClipSeconds?: number | null;
+  maxClipSeconds?: number | null;
+  maxClipsPerClipper?: number | null;
+  rulesDo?: string[];
+  rulesDont?: string[];
+  rulesNotes?: string;
+}
+
+export interface CampaignRules {
+  requiredCaption?: string;
+  minClipSeconds?: number | null;
+  maxClipSeconds?: number | null;
+  maxClipsPerClipper?: number | null;
+  rulesDo: string[];
+  rulesDont: string[];
+  rulesNotes?: string;
 }
 
 export interface PendingClipRow {
@@ -37,6 +55,9 @@ export interface PendingClipRow {
 
 export interface PendingClip extends PendingClipRow {
   codeVerified: boolean;
+  /** Campaign creator rules shown beside the submission for admin review. */
+  campaignRules?: CampaignRules;
+  campaignBrief?: string;
 }
 
 /** An approved clip whose view count keeps being topped up while its campaign runs. */
@@ -113,7 +134,17 @@ export interface CreateCampaignForm {
   imageUrl: string;
   sourceType: SourceType;
   bestMoments: string;
+  /** Campaign brief — what the content is about. */
   description: string;
+  requiredCaption: string;
+  minClipSeconds: string;
+  maxClipSeconds: string;
+  maxClipsPerClipper: string;
+  /** One rule per line — things clippers must do. */
+  rulesDo: string;
+  /** One rule per line — things clippers must not do. */
+  rulesDont: string;
+  rulesNotes: string;
   platforms: string[];
   cpm: string;
   budget: string;

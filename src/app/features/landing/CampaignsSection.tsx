@@ -62,7 +62,6 @@ export function CampaignsSection({ campaigns = [] }: { campaigns?: Campaign[] })
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold leading-snug break-words">{c.name}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{c.funder}</p>
                   </div>
                   <div className="flex gap-1 flex-wrap">
                     {c.platforms.map((p) => (

@@ -1,4 +1,5 @@
 import { CheckCircle, ExternalLink, XCircle } from "lucide-react";
+import { CampaignRulesPanel, hasCampaignRules, rulesFromCampaign } from "@/app/components/shared/CampaignRulesPanel";
 import { PlatformBadge } from "@/app/components/shared/PlatformBadge";
 import type { PendingClip } from "@/app/types";
 
@@ -34,7 +35,7 @@ export function PendingReview({
       <div>
         <h3 className="text-sm font-semibold">Clips Awaiting Review</h3>
         <p className="text-xs text-muted-foreground mt-1">
-          Verify the post link and caption code. Approve or reject — view counts are verified separately.
+          Verify the post against campaign creator rules, then approve or reject. View counts are verified separately.
         </p>
       </div>
       <div className="flex items-center justify-end">
@@ -54,88 +55,100 @@ export function PendingReview({
           <p className="text-sm">All clips reviewed. Nothing pending.</p>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  {["Clipper", "Campaign", "Platform", "Submitted", "Proof code", "Link", "Actions"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs text-muted-foreground font-medium whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {clips.map((c) => (
-                  <tr key={c.id} className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors">
-                    <td className="px-4 py-3 font-medium whitespace-nowrap">{c.clipper}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate">{c.campaign}</td>
-                    <td className="px-4 py-3"><PlatformBadge p={c.platform} /></td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{c.date}</td>
-                    <td className="px-4 py-3">
-                      <code className="text-xs font-mono text-primary whitespace-nowrap">
-                        {c.verificationCode}
-                      </code>
-                      <label className="flex items-center gap-1.5 mt-1.5 text-[11px] text-muted-foreground cursor-pointer whitespace-nowrap">
-                        <input
-                          type="checkbox"
-                          checked={c.codeVerified}
-                          onChange={(e) => onCodeVerifiedChange(c.id, e.target.checked)}
-                          className="accent-primary"
-                        />
-                        Code visible in caption
-                      </label>
-                    </td>
-                    <td className="px-4 py-3">
-                      <a href={c.link} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
-                        Open <ExternalLink size={10} />
-                      </a>
-                    </td>
-                    <td className="px-4 py-3">
-                      {rejectingId === c.id ? (
-                        <div className="space-y-2 min-w-[200px]">
-                          <input
-                            value={rejectReason}
-                            onChange={(e) => onRejectReasonChange(e.target.value)}
-                            placeholder="Rejection reason"
-                            className="w-full bg-input-background border border-border rounded px-2 py-1 text-xs"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => onReject(c.id, rejectReason || undefined)}
-                              disabled={actionId === c.id}
-                              className="text-xs text-red-400 hover:underline disabled:opacity-50"
-                            >
-                              Confirm reject
-                            </button>
-                            <button onClick={onCancelReject} className="text-xs text-muted-foreground hover:underline">
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => onApprove(c.id)}
-                            disabled={!c.codeVerified || actionId === c.id}
-                            className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary hover:text-primary-foreground transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            <CheckCircle size={10} /> {actionId === c.id ? "…" : "Approve"}
-                          </button>
-                          <button
-                            onClick={() => onStartReject(c.id)}
-                            disabled={actionId === c.id}
-                            className="flex items-center gap-1 px-2.5 py-1 text-xs bg-red-500/10 text-red-400 border border-red-500/20 rounded hover:bg-red-500 hover:text-white transition-all whitespace-nowrap disabled:opacity-40"
-                          >
-                            <XCircle size={10} /> Reject
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="space-y-3">
+          {clips.map((c) => {
+            const rules = c.campaignRules ?? rulesFromCampaign(undefined);
+            return (
+              <div key={c.id} className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      <tr className="hover:bg-secondary/30 transition-colors">
+                        <td className="px-4 py-3 font-medium whitespace-nowrap">{c.clipper}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground max-w-[180px] truncate">{c.campaign}</td>
+                        <td className="px-4 py-3"><PlatformBadge p={c.platform} /></td>
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{c.date}</td>
+                        <td className="px-4 py-3">
+                          <code className="text-xs font-mono text-primary whitespace-nowrap">
+                            {c.verificationCode}
+                          </code>
+                          <label className="flex items-center gap-1.5 mt-1.5 text-[11px] text-muted-foreground cursor-pointer whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={c.codeVerified}
+                              onChange={(e) => onCodeVerifiedChange(c.id, e.target.checked)}
+                              className="accent-primary"
+                            />
+                            Code visible in caption
+                          </label>
+                        </td>
+                        <td className="px-4 py-3">
+                          <a href={c.link} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
+                            Open <ExternalLink size={10} />
+                          </a>
+                        </td>
+                        <td className="px-4 py-3">
+                          {rejectingId === c.id ? (
+                            <div className="space-y-2 min-w-[200px]">
+                              <input
+                                value={rejectReason}
+                                onChange={(e) => onRejectReasonChange(e.target.value)}
+                                placeholder="Rejection reason"
+                                className="w-full bg-input-background border border-border rounded px-2 py-1 text-xs"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => onReject(c.id, rejectReason || undefined)}
+                                  disabled={actionId === c.id}
+                                  className="text-xs text-red-400 hover:underline disabled:opacity-50"
+                                >
+                                  Confirm reject
+                                </button>
+                                <button onClick={onCancelReject} className="text-xs text-muted-foreground hover:underline">
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => onApprove(c.id)}
+                                disabled={!c.codeVerified || actionId === c.id}
+                                className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary hover:text-primary-foreground transition-all whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <CheckCircle size={10} /> {actionId === c.id ? "…" : "Approve"}
+                              </button>
+                              <button
+                                onClick={() => onStartReject(c.id)}
+                                disabled={actionId === c.id}
+                                className="flex items-center gap-1 px-2.5 py-1 text-xs bg-red-500/10 text-red-400 border border-red-500/20 rounded hover:bg-red-500 hover:text-white transition-all whitespace-nowrap disabled:opacity-40"
+                              >
+                                <XCircle size={10} /> Reject
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                {(c.campaignBrief || hasCampaignRules(rules)) && (
+                  <div className="px-4 py-3 border-t border-border bg-secondary/20 grid sm:grid-cols-2 gap-4">
+                    {c.campaignBrief ? (
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Brief</p>
+                        <p className="text-xs text-foreground/90 leading-relaxed">{c.campaignBrief}</p>
+                      </div>
+                    ) : null}
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Creator rules</p>
+                      <CampaignRulesPanel rules={rules} compact />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

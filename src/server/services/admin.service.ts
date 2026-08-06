@@ -53,7 +53,17 @@ function mapPendingRow(s: {
   viewsVerified: number | null;
   status: SubmissionStatus;
   clipper: { clipperProfile: { displayName: string } | null };
-  campaign: { name: string };
+  campaign: {
+    name: string;
+    description?: string;
+    requiredCaption?: string | null;
+    minClipSeconds?: number | null;
+    maxClipSeconds?: number | null;
+    maxClipsPerClipper?: number | null;
+    rulesDo?: string[];
+    rulesDont?: string[];
+    rulesNotes?: string | null;
+  };
   review?: { codeVerified: boolean } | null;
 }) {
   return {
@@ -67,6 +77,16 @@ function mapPendingRow(s: {
     views: s.viewsVerified ?? 0,
     status: normalizeStatus(s.status),
     codeVerified: s.review?.codeVerified ?? false,
+    campaignBrief: s.campaign.description ?? "",
+    campaignRules: {
+      requiredCaption: s.campaign.requiredCaption ?? "",
+      minClipSeconds: s.campaign.minClipSeconds ?? null,
+      maxClipSeconds: s.campaign.maxClipSeconds ?? null,
+      maxClipsPerClipper: s.campaign.maxClipsPerClipper ?? null,
+      rulesDo: s.campaign.rulesDo ?? [],
+      rulesDont: s.campaign.rulesDont ?? [],
+      rulesNotes: s.campaign.rulesNotes ?? "",
+    },
   };
 }
 
